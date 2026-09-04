@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Companion - Инвентарь</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <main class="main-content" style="margin-left: 0;">
+            <div class="page-content">
+                <button class="btn-back" data-back="character.html">
+                    <i data-lucide="arrow-left"></i>
+                    Назад
+                </button>
+
+                <div class="page-header" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1 class="page-title">Инвентарь</h1>
+                        <p class="page-subtitle">Carrying: <span id="carryingWeight">24/90 lb</span></p>
+                    </div>
+                    <button class="btn btn-primary" id="addItemBtn">
+                        <i data-lucide="plus"></i>
+                        Добавить
+                    </button>
+                </div>
+
+                <!-- Category Filters -->
+                <div class="tabs-container">
+                    <div class="tabs-scroll">
+                        <button class="category-filter active" data-category="all">All</button>
+                        <button class="category-filter" data-category="Weapons">Weapons</button>
+                        <button class="category-filter" data-category="Armor">Armor</button>
+                        <button class="category-filter" data-category="Potions">Potions</button>
+                        <button class="category-filter" data-category="Magic">Magic</button>
+                        <button class="category-filter" data-category="Tools">Tools</button>
+                        <button class="category-filter" data-category="Other">Other</button>
+                    </div>
+                </div>
+
+                <!-- Inventory List -->
+                <div id="inventoryList"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div class="modal-overlay" id="addItemModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Добавить предмет</h3>
+                <button class="btn-icon" data-close-modal>
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group" style="margin-bottom: 16px;">
+                    <label>Название</label>
+                    <input type="text" id="newItemName" placeholder="Название предмета">
+                </div>
+                <div class="input-group" style="margin-bottom: 16px;">
+                    <label>Категория</label>
+                    <select id="newItemCategory">
+                        <option>Weapons</option>
+                        <option>Armor</option>
+                        <option>Potions</option>
+                        <option>Magic</option>
+                        <option>Tools</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Количество</label>
+                    <input type="number" id="newItemQuantity" value="1" min="1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close-modal>Отмена</button>
+                <button class="btn btn-primary" id="confirmAddItem">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

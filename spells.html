@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Companion - Заклинания</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <main class="main-content" style="margin-left: 0;">
+            <div class="page-content">
+                <button class="btn-back" data-back="tools.html">
+                    <i data-lucide="arrow-left"></i>
+                    Назад
+                </button>
+
+                <div class="page-header" style="margin-top: 20px;">
+                    <h1 class="page-title">Заклинания</h1>
+                    <p class="page-subtitle">Справочник заклинаний</p>
+                </div>
+
+                <!-- Search -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <input type="search" id="spellSearch" placeholder="Поиск заклинаний..." style="width: 100%;">
+                </div>
+
+                <!-- Level Filters -->
+                <div class="tabs-container">
+                    <div class="tabs-scroll">
+                        <button class="spell-filter active" data-level="all">All</button>
+                        <button class="spell-filter" data-level="0">Cantrip</button>
+                        <button class="spell-filter" data-level="1">1</button>
+                        <button class="spell-filter" data-level="2">2</button>
+                        <button class="spell-filter" data-level="3">3</button>
+                        <button class="spell-filter" data-level="4">4</button>
+                        <button class="spell-filter" data-level="5">5</button>
+                    </div>
+                </div>
+
+                <!-- Spells List -->
+                <div id="spellsList">
+                    <div class="card spell-card" data-spell="fireball" data-level="3" style="cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3>Fireball</h3>
+                                <p class="text-secondary">Level 3 • Evocation</p>
+                                <p class="text-secondary">1 Action • 150 ft • V, S, M</p>
+                            </div>
+                            <i data-lucide="chevron-right"></i>
+                        </div>
+                    </div>
+                    <div class="card spell-card" data-spell="magic-missile" data-level="1" style="cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3>Magic Missile</h3>
+                                <p class="text-secondary">Level 1 • Evocation</p>
+                                <p class="text-secondary">1 Action • 120 ft • V, S</p>
+                            </div>
+                            <i data-lucide="chevron-right"></i>
+                        </div>
+                    </div>
+                    <div class="card spell-card" data-spell="cure-wounds" data-level="1" style="cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3>Cure Wounds</h3>
+                                <p class="text-secondary">Level 1 • Evocation</p>
+                                <p class="text-secondary">1 Action • Touch • V, S</p>
+                            </div>
+                            <i data-lucide="chevron-right"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Spell Modal -->
+    <div class="modal-overlay" id="spellModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="spellModalTitle">Fireball</h3>
+                <button class="btn-icon" data-close-modal>
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="spellModalDetails">
+                <!-- Spell details will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" data-close-modal>Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

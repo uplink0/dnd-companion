@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Companion - Главная</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">⚔</div>
+                    <div class="logo-text">
+                        <span class="logo-text-main">D&D</span>
+                        <span class="logo-text-sub">COMPANION</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i data-lucide="chevrons-left"></i>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="index.html" class="nav-item active" data-nav="index.html">
+                    <i data-lucide="home"></i>
+                    <span class="nav-label">Главная</span>
+                </a>
+                <a href="tools.html" class="nav-item" data-nav="tools.html">
+                    <i data-lucide="wrench"></i>
+                    <span class="nav-label">Инструменты</span>
+                </a>
+                <a href="character.html" class="nav-item" data-nav="character.html">
+                    <i data-lucide="user"></i>
+                    <span class="nav-label">Персонаж</span>
+                </a>
+                <a href="campaign.html" class="nav-item" data-nav="campaign.html">
+                    <i data-lucide="castle"></i>
+                    <span class="nav-label">Кампания</span>
+                </a>
+                <a href="settings.html" class="nav-item" data-nav="settings.html">
+                    <i data-lucide="settings"></i>
+                    <span class="nav-label">Настройки</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="profile-card">
+                    <div class="profile-avatar">И</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 14px;">Иван</div>
+                        <div style="color: var(--text-secondary); font-size: 12px;">Paladin</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- Header -->
+                <div class="page-header">
+                    <h1 class="page-title">Добро пожаловать обратно</h1>
+                    <p class="page-subtitle">Ваше приключение продолжается</p>
+                </div>
+
+                <!-- Hero Section -->
+                <div class="hero-section">
+                    <div class="hero-content">
+                        <div class="hero-badge">
+                            <i data-lucide="map-pin"></i>
+                            Campaign
+                        </div>
+                        <h2 class="hero-title">Таверна «Мокрый Торг»</h2>
+                        <p class="hero-subtitle">Session #12 • 5 игроков • Активная кампания</p>
+                        <a href="campaign.html" class="btn btn-primary">
+                            Продолжить приключение
+                            <i data-lucide="arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Dashboard Grid -->
+                <div class="dashboard-grid">
+                    <!-- Active Character -->
+                    <div class="card card-accent">
+                        <div class="card-header">
+                            <h3>Активный персонаж</h3>
+                            <a href="character.html" class="btn-icon">
+                                <i data-lucide="edit-2"></i>
+                            </a>
+                        </div>
+                        <div class="character-card">
+                            <div class="character-portrait">A</div>
+                            <div class="character-info">
+                                <h4 class="character-name">Arthas</h4>
+                                <p class="character-details">Human Paladin • Level 5</p>
+                                <div class="character-stats-grid">
+                                    <div class="stat-block">
+                                        <div class="stat-label">HP</div>
+                                        <div class="stat-value" data-hp-value>42/48</div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" data-hp-bar style="width: 87.5%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-block">
+                                        <div class="stat-label">AC</div>
+                                        <div class="stat-value">18</div>
+                                    </div>
+                                    <div class="stat-block">
+                                        <div class="stat-label">INIT</div>
+                                        <div class="stat-value">+2</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Быстрые действия</h3>
+                        </div>
+                        <div class="quick-actions-grid">
+                            <button class="quick-action" data-target="dice.html">
+                                <div class="quick-action-icon">🎲</div>
+                                <span class="quick-action-label">Кости</span>
+                            </button>
+                            <button class="quick-action" data-target="combat.html">
+                                <div class="quick-action-icon">⚔️</div>
+                                <span class="quick-action-label">Бой</span>
+                            </button>
+                            <button class="quick-action" data-target="spells.html">
+                                <div class="quick-action-icon">📖</div>
+                                <span class="quick-action-label">Заклинания</span>
+                            </button>
+                            <button class="quick-action" data-target="inventory.html">
+                                <div class="quick-action-icon">🎒</div>
+                                <span class="quick-action-label">Инвентарь</span>
+                            </button>
+                            <button class="quick-action" data-target="notes.html">
+                                <div class="quick-action-icon">📝</div>
+                                <span class="quick-action-label">Заметки</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Current Quest -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Текущий квест</h3>
+                            <span class="badge">Active</span>
+                        </div>
+                        <h4 style="margin-bottom: 12px;">Тени под старой башней</h4>
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: var(--text-secondary);">Прогресс</span>
+                                <span style="color: var(--gold);">80%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 80%"></div>
+                            </div>
+                        </div>
+                        <div style="color: var(--text-secondary); margin-bottom: 16px;">
+                            Награда: 250 XP
+                        </div>
+                        <button class="btn btn-secondary">Открыть квест</button>
+                    </div>
+
+                    <!-- Next Session -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Следующая сессия</h3>
+                        </div>
+                        <div style="text-align: center; padding: 20px 0;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--gold-light); margin-bottom: 8px;">
+                                Saturday
+                            </div>
+                            <div style="font-size: 20px; margin-bottom: 8px;">19:00</div>
+                            <div style="color: var(--text-secondary); margin-bottom: 8px;">Таверна «Мокрый Торг»</div>
+                            <div>5 игроков</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mobile Navigation -->
+        <nav class="mobile-nav">
+            <div class="mobile-nav-inner">
+                <a href="index.html" class="mobile-nav-item active" data-nav="index.html">
+                    <i data-lucide="home"></i>
+                    <span>Главная</span>
+                </a>
+                <a href="tools.html" class="mobile-nav-item" data-nav="tools.html">
+                    <i data-lucide="wrench"></i>
+                    <span>Инстр.</span>
+                </a>
+                <a href="character.html" class="mobile-nav-item" data-nav="character.html">
+                    <i data-lucide="user"></i>
+                    <span>Перс.</span>
+                </a>
+                <a href="campaign.html" class="mobile-nav-item" data-nav="campaign.html">
+                    <i data-lucide="castle"></i>
+                    <span>Камп.</span>
+                </a>
+                <a href="settings.html" class="mobile-nav-item" data-nav="settings.html">
+                    <i data-lucide="settings"></i>
+                    <span>Настр.</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

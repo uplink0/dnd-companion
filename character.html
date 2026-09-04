@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Companion - Персонаж</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar (same structure) -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Sidebar content -->
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-content">
+                <div class="page-header">
+                    <h1 class="page-title">Персонаж</h1>
+                    <p class="page-subtitle">Лист персонажа Arthas</p>
+                </div>
+
+                <!-- Character Header -->
+                <div class="card character-card">
+                    <div class="character-portrait">A</div>
+                    <div class="character-info">
+                        <h2 class="character-name">ARTHAS</h2>
+                        <p class="character-details">Human • Paladin • Level 5</p>
+                        <div class="character-stats-grid">
+                            <div class="stat-block">
+                                <div class="stat-label">HP</div>
+                                <div class="stat-value" data-hp-value>42/48</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" data-hp-bar style="width: 87.5%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-block">
+                                <div class="stat-label">AC</div>
+                                <div class="stat-value">18</div>
+                            </div>
+                            <div class="stat-block">
+                                <div class="stat-label">INIT</div>
+                                <div class="stat-value">+2</div>
+                            </div>
+                            <div class="stat-block">
+                                <div class="stat-label">SPEED</div>
+                                <div class="stat-value">30 ft</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HP Controls -->
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Изменить HP</h3>
+                    <div class="hp-controls">
+                        <button class="btn btn-secondary" data-hp-change="-5">-5 HP</button>
+                        <button class="btn btn-secondary" data-hp-change="-1">-1 HP</button>
+                        <button class="btn btn-secondary" data-hp-change="1">+1 HP</button>
+                        <button class="btn btn-secondary" data-hp-change="5">+5 HP</button>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Характеристики</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-name">STR</div>
+                            <div class="stat-number">16</div>
+                            <div class="stat-mod">+3</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-name">DEX</div>
+                            <div class="stat-number">12</div>
+                            <div class="stat-mod">+1</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-name">CON</div>
+                            <div class="stat-number">14</div>
+                            <div class="stat-mod">+2</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-name">INT</div>
+                            <div class="stat-number">10</div>
+                            <div class="stat-mod">+0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-name">WIS</div>
+                            <div class="stat-number">13</div>
+                            <div class="stat-mod">+1</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-name">CHA</div>
+                            <div class="stat-number">18</div>
+                            <div class="stat-mod">+4</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs-container">
+                    <div class="tabs-scroll">
+                        <button class="tab-btn active" data-tab="overview">Overview</button>
+                        <button class="tab-btn" data-tab="combat">Combat</button>
+                        <button class="tab-btn" data-tab="inventory">Inventory</button>
+                        <button class="tab-btn" data-tab="spells">Spells</button>
+                        <button class="tab-btn" data-tab="features">Features</button>
+                        <button class="tab-btn" data-tab="notes">Notes</button>
+                    </div>
+                </div>
+
+                <!-- Tab Content -->
+                <div id="tab-overview" class="tab-content" style="display: block;">
+                    <div class="card">
+                        <h3>Обзор</h3>
+                        <p>Паладин-защитник, верный служитель света</p>
+                    </div>
+                </div>
+                <div id="tab-combat" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <h3>Боевые характеристики</h3>
+                        <p>AC: 18</p>
+                        <p>Инициатива: +2</p>
+                        <p>Скорость: 30 ft</p>
+                    </div>
+                </div>
+                <div id="tab-inventory" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <h3>Инвентарь</h3>
+                        <a href="inventory.html" class="btn btn-secondary">Открыть инвентарь</a>
+                    </div>
+                </div>
+                <div id="tab-spells" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <h3>Заклинания</h3>
+                        <a href="spells.html" class="btn btn-secondary">Открыть заклинания</a>
+                    </div>
+                </div>
+                <div id="tab-features" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <h3>Особенности</h3>
+                        <p>Божественное чувство, Наложение рук</p>
+                    </div>
+                </div>
+                <div id="tab-notes" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <h3>Заметки</h3>
+                        <a href="notes.html" class="btn btn-secondary">Открыть заметки</a>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mobile Navigation -->
+        <nav class="mobile-nav">
+            <!-- Same mobile nav -->
+        </nav>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Companion - Инструменты</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar (same as index.html) -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Same sidebar content -->
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">⚔</div>
+                    <div class="logo-text">
+                        <span class="logo-text-main">D&D</span>
+                        <span class="logo-text-sub">COMPANION</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i data-lucide="chevrons-left"></i>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="index.html" class="nav-item">
+                    <i data-lucide="home"></i>
+                    <span class="nav-label">Главная</span>
+                </a>
+                <a href="tools.html" class="nav-item active" data-nav="tools.html">
+                    <i data-lucide="wrench"></i>
+                    <span class="nav-label">Инструменты</span>
+                </a>
+                <a href="character.html" class="nav-item">
+                    <i data-lucide="user"></i>
+                    <span class="nav-label">Персонаж</span>
+                </a>
+                <a href="campaign.html" class="nav-item">
+                    <i data-lucide="castle"></i>
+                    <span class="nav-label">Кампания</span>
+                </a>
+                <a href="settings.html" class="nav-item">
+                    <i data-lucide="settings"></i>
+                    <span class="nav-label">Настройки</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-content">
+                <div class="page-header">
+                    <h1 class="page-title">Инструменты</h1>
+                    <p class="page-subtitle">Всё необходимое для игры</p>
+                </div>
+
+                <div class="tools-grid">
+                    <a href="dice.html" class="card tool-card">
+                        <div class="tool-icon">🎲</div>
+                        <h3>DICE ROLLER</h3>
+                        <p>Бросайте любые кости</p>
+                        <i data-lucide="arrow-right" class="tool-arrow"></i>
+                    </a>
+                    <a href="combat.html" class="card tool-card">
+                        <div class="tool-icon">⚔️</div>
+                        <h3>COMBAT TRACKER</h3>
+                        <p>Управление боем</p>
+                        <i data-lucide="arrow-right" class="tool-arrow"></i>
+                    </a>
+                    <a href="spells.html" class="card tool-card">
+                        <div class="tool-icon">📖</div>
+                        <h3>SPELLBOOK</h3>
+                        <p>Справочник заклинаний</p>
+                        <i data-lucide="arrow-right" class="tool-arrow"></i>
+                    </a>
+                    <a href="inventory.html" class="card tool-card">
+                        <div class="tool-icon">🎒</div>
+                        <h3>INVENTORY</h3>
+                        <p>Управление инвентарём</p>
+                        <i data-lucide="arrow-right" class="tool-arrow"></i>
+                    </a>
+                    <a href="notes.html" class="card tool-card">
+                        <div class="tool-icon">📝</div>
+                        <h3>NOTES</h3>
+                        <p>Заметки кампании</p>
+                        <i data-lucide="arrow-right" class="tool-arrow"></i>
+                    </a>
+                    <div class="card tool-card">
+                        <div class="tool-icon">💰</div>
+                        <h3>LOOT GENERATOR</h3>
+                        <p>Генератор добычи</p>
+                        <i data-lucide="arrow-right" class="tool-arrow"></i>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mobile Navigation (same as index.html) -->
+        <nav class="mobile-nav">
+            <div class="mobile-nav-inner">
+                <a href="index.html" class="mobile-nav-item">
+                    <i data-lucide="home"></i>
+                    <span>Главная</span>
+                </a>
+                <a href="tools.html" class="mobile-nav-item active" data-nav="tools.html">
+                    <i data-lucide="wrench"></i>
+                    <span>Инстр.</span>
+                </a>
+                <a href="character.html" class="mobile-nav-item">
+                    <i data-lucide="user"></i>
+                    <span>Перс.</span>
+                </a>
+                <a href="campaign.html" class="mobile-nav-item">
+                    <i data-lucide="castle"></i>
+                    <span>Камп.</span>
+                </a>
+                <a href="settings.html" class="mobile-nav-item">
+                    <i data-lucide="settings"></i>
+                    <span>Настр.</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

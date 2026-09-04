@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Companion - Кости</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Content -->
+        <main class="main-content" style="margin-left: 0;">
+            <div class="page-content">
+                <button class="btn-back" data-back="tools.html">
+                    <i data-lucide="arrow-left"></i>
+                    Назад
+                </button>
+
+                <div class="page-header" style="margin-top: 20px;">
+                    <h1 class="page-title">DICE ROLLER</h1>
+                    <p class="page-subtitle">Бросьте свою судьбу</p>
+                </div>
+
+                <div class="dice-roller-container">
+                    <!-- Dice Display -->
+                    <div class="dice-display" id="diceDisplay">
+                        <div class="dice-shape">20</div>
+                    </div>
+
+                    <!-- Dice Types -->
+                    <div class="dice-types">
+                        <button class="dice-type-btn" data-dice="d4">d4</button>
+                        <button class="dice-type-btn" data-dice="d6">d6</button>
+                        <button class="dice-type-btn" data-dice="d8">d8</button>
+                        <button class="dice-type-btn" data-dice="d10">d10</button>
+                        <button class="dice-type-btn" data-dice="d12">d12</button>
+                        <button class="dice-type-btn active" data-dice="d20">d20</button>
+                        <button class="dice-type-btn" data-dice="d100">d100</button>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="dice-controls">
+                        <div class="input-group">
+                            <label>Количество</label>
+                            <input type="number" id="diceCount" value="1" min="1" max="10">
+                        </div>
+                        <div class="input-group">
+                            <label>Модификатор</label>
+                            <input type="number" id="diceModifier" value="0" min="-10" max="10">
+                        </div>
+                    </div>
+
+                    <!-- Roll Button -->
+                    <button class="btn btn-primary roll-btn" id="rollButton">
+                        ROLL D20
+                    </button>
+
+                    <!-- Result Display -->
+                    <div class="dice-result-display" id="rollResult">
+                        <div class="dice-result-number" id="resultNumber">-</div>
+                        <div class="dice-result-label" id="resultLabel">Нажмите ROLL</div>
+                    </div>
+
+                    <!-- Roll History -->
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">История бросков</h3>
+                        <div id="rollHistory"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Companion - Настройки</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">⚔</div>
+                    <div class="logo-text">
+                        <span class="logo-text-main">D&D</span>
+                        <span class="logo-text-sub">COMPANION</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i data-lucide="chevrons-left"></i>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="index.html" class="nav-item">
+                    <i data-lucide="home"></i>
+                    <span class="nav-label">Главная</span>
+                </a>
+                <a href="tools.html" class="nav-item">
+                    <i data-lucide="wrench"></i>
+                    <span class="nav-label">Инструменты</span>
+                </a>
+                <a href="character.html" class="nav-item">
+                    <i data-lucide="user"></i>
+                    <span class="nav-label">Персонаж</span>
+                </a>
+                <a href="campaign.html" class="nav-item">
+                    <i data-lucide="castle"></i>
+                    <span class="nav-label">Кампания</span>
+                </a>
+                <a href="settings.html" class="nav-item active" data-nav="settings.html">
+                    <i data-lucide="settings"></i>
+                    <span class="nav-label">Настройки</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-content">
+                <div class="page-header">
+                    <h1 class="page-title">Настройки</h1>
+                    <p class="page-subtitle">Настройте приложение под себя</p>
+                </div>
+
+                <!-- Appearance -->
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Внешний вид</h3>
+                    <div class="theme-selector">
+                        <button class="theme-btn" data-theme="dark">Тёмная</button>
+                        <button class="theme-btn" data-theme="light">Светлая</button>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Уведомления</h3>
+                    <div class="toggle-item">
+                        <span>Push-уведомления</span>
+                        <input type="checkbox" checked>
+                    </div>
+                </div>
+
+                <!-- Language -->
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Язык</h3>
+                    <select style="width: 100%; padding: 12px;">
+                        <option>Русский</option>
+                        <option>English</option>
+                    </select>
+                </div>
+
+                <!-- About -->
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">О приложении</h3>
+                    <p class="text-secondary">D&D Companion v1.0.0</p>
+                    <p class="text-secondary">Создано для фанатов D&D 5e</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mobile Navigation -->
+        <nav class="mobile-nav">
+            <div class="mobile-nav-inner">
+                <a href="index.html" class="mobile-nav-item">
+                    <i data-lucide="home"></i>
+                    <span>Главная</span>
+                </a>
+                <a href="tools.html" class="mobile-nav-item">
+                    <i data-lucide="wrench"></i>
+                    <span>Инстр.</span>
+                </a>
+                <a href="character.html" class="mobile-nav-item">
+                    <i data-lucide="user"></i>
+                    <span>Перс.</span>
+                </a>
+                <a href="campaign.html" class="mobile-nav-item">
+                    <i data-lucide="castle"></i>
+                    <span>Камп.</span>
+                </a>
+                <a href="settings.html" class="mobile-nav-item active" data-nav="settings.html">
+                    <i data-lucide="settings"></i>
+                    <span>Настр.</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@0.263.1/dist/umd/lucide.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
