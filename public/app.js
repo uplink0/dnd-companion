@@ -82,9 +82,11 @@ async function render(){
     crumb.textContent=page==='chat'?'Чат с Мастером':(item?.[2]||'Кампания');
     app.focus({preventScroll:true});
     wire();
+    window.dispatchEvent(new CustomEvent('dnd:page-rendered',{detail:{page}}));
   }catch(error){
     app.innerHTML=`<div class="panel" style="padding:24px"><strong>Ошибка загрузки раздела</strong><p>${esc(error.message)}</p></div>`;
     crumb.textContent='Ошибка';
+    window.dispatchEvent(new CustomEvent('dnd:page-rendered',{detail:{page:'error'}}));
   }
 }
 
