@@ -1,6 +1,7 @@
 (() => {
   const CAMPAIGN_ID = '10000000-0000-4000-8000-000000000001';
   const ACTIVE_KEY = 'dnd.activeCharacterId';
+  const BASE_POINTS = 72;
   const app = document.querySelector('#app');
   const crumb = document.querySelector('#crumb');
   const esc = (value) => String(value ?? '').replace(/[&<>\"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[char]));
@@ -74,26 +75,64 @@
     }
   }
 
+  function normalizeBaseAbilities(input = {}) {
+    const abilities = Object.fromEntries(statList.map(([key]) => [key, Math.min(18, Math.max(1, Number(input[key] ?? 1)))]));
+    let total = statList.reduce((sum, [key]) => sum + abilities[key], 0);
+    while (total > BASE_POINTS) {
+      const key = [...statList].map(([name]) => name).sort((a,b) => abilities[b] - abilities[a]).find((name) => abilities[name] > 1);
+      if (!key) break;
+      abilities[key] -= 1;
+      total -= 1;
+    }
+    while (total < BASE_POINTS) {
+      const key = [...statList].map(([name]) => name).filter((name) => abilities[name] < 18).sort((a,b) => abilities[a] - abilities[b])[0];
+      if (!key) break;
+      abilities[key] += 1;
+      total += 1;
+    }
+    return abilities;
+  }
+
+  function readAbilities() {
+    return Object.fromEntries(Array.from(document.querySelectorAll('.stat-input')).map((input) => [input.dataset.stat, Number(input.value)]));
+  }
+
+  function clampEditedStat(input) {
+    if (!input) return;
+    let value = Number(input.value);
+    if (!Number.isFinite(value)) value = 1;
+    value = Math.trunc(value);
+    value = Math.min(18, Math.max(1, value));
+
+    const othersTotal = statList.reduce((sum, [key]) => {
+      if (key === input.dataset.stat) return sum;
+      return sum + Number(document.querySelector(`.stat-input[data-stat="${key}"]`)?.value || 0);
+    }, 0);
+
+    const maxAllowed = Math.min(18, BASE_POINTS - othersTotal);
+    input.value = String(Math.max(1, Math.min(value, maxAllowed)));
+  }
+
   function creatorMarkup(draft = {}) {
     const races = Object.keys(options?.races || {});
     const classes = Object.keys(options?.classes || {});
     const race = draft.race || races[0] || 'Человек';
     const className = draft.className || classes[0] || 'Воин';
-    const abilities = draft.baseAbilities || draft.abilities || {str:12,dex:12,con:12,int:12,wis:12,cha:12};
+    const abilities = normalizeBaseAbilities(draft.baseAbilities || draft.abilities || {str:12,dex:12,con:12,int:12,wis:12,cha:12});
     const total = statList.reduce((sum,[key]) => sum + Number(abilities[key] || 0), 0);
     return `<div class="character-creator">
-      <div class="character-detail-top"><button class="back-button" id="creatorBack">← Назад к персонажам</button><div class="creator-total"><b id="statTotal">${total}</b> / 72 очка</div></div>
+      <div class="character-detail-top"><button class="back-button" id="creatorBack">← Назад к персонажам</button><div class="creator-total"><b id="statTotal">${total}</b> / ${BASE_POINTS} очка</div></div>
       <section class="panel creator-panel">
         <div class="eyebrow">Новый герой</div><h1>Создание персонажа</h1>
-        <p class="creator-help">Распредели ровно 72 базовых очка. База каждой характеристики — 1–18. Бонусы расы и класса учитываются отдельно и могут поднять итог выше 18.</p>
+        <p class="creator-help">На 1 уровне у героя ровно 72 базовых очка. Каждый базовый стат — от 1 до 18. Пока одно значение повышается, свободных очков автоматически становится меньше, поэтому невозможно поднять несколько характеристик до 18 и превысить общий лимит. Бонусы расы и класса считаются отдельно.</p>
         <div class="creator-grid">
           <label>Имя<input id="heroName" maxlength="80" value="${esc(draft.name || '')}" placeholder="Имя персонажа"></label>
           <label>Раса<select id="heroRace">${races.map(value => `<option ${race === value ? 'selected' : ''}>${esc(value)}</option>`).join('')}</select></label>
           <label>Класс<select id="heroClass">${classes.map(value => `<option ${className === value ? 'selected' : ''}>${esc(value)}</option>`).join('')}</select></label>
           <label>Предыстория<input id="heroBackground" maxlength="120" value="${esc(draft.background || '')}" placeholder="Например: Искатель древностей"></label>
         </div>
-        <div class="stat-editor"><div class="panel-title">Характеристики <span>база 1–18 + бонусы отдельно</span></div>
-          <div class="creator-stats">${statList.map(([key,label]) => `<label><span>${label}</span><input class="stat-input" data-stat="${key}" type="number" min="1" max="18" value="${Number(abilities[key] || 12)}"><small id="mod-${key}"></small></label>`).join('')}</div>
+        <div class="stat-editor"><div class="panel-title">Характеристики <span>база 1–18</span></div>
+          <div class="creator-stats">${statList.map(([key,label]) => `<label><span>${label}</span><input class="stat-input" data-stat="${key}" type="number" min="1" max="18" value="${Number(abilities[key] || 1)}"><small id="mod-${key}"></small></label>`).join('')}</div>
         </div>
         <div class="creator-actions"><button class="btn" id="generateHero">✦ Сгенерировать персонажа полностью</button><button class="btn gold" id="saveHero">Создать героя</button></div>
         <div id="creatorError" class="creator-error" hidden></div><div class="creator-preview" id="creatorPreview"></div>
@@ -104,20 +143,20 @@
   function updateCreator() {
     const race = document.querySelector('#heroRace')?.value;
     const className = document.querySelector('#heroClass')?.value;
-    const abilities = Object.fromEntries(Array.from(document.querySelectorAll('.stat-input')).map((input) => [input.dataset.stat, Number(input.value)]));
+    const abilities = readAbilities();
     const bonuses = bonusMap(race, className);
     const total = statList.reduce((sum,[key]) => sum + abilities[key], 0);
     const totalElement = document.querySelector('#statTotal');
-    if (totalElement) { totalElement.textContent = total; totalElement.classList.toggle('invalid', total !== 72); }
-    statList.forEach(([key, label]) => {
+    if (totalElement) { totalElement.textContent = total; totalElement.classList.toggle('invalid', total !== BASE_POINTS); }
+    statList.forEach(([key]) => {
       const element = document.querySelector(`#mod-${key}`);
       if (!element) return;
       const final = abilities[key] + bonuses[key];
       const mod = modifier(final);
-      element.innerHTML = `база <b>${abilities[key]}</b> <span class="bonus-chip">+${bonuses[key] || 0}</span> = <b>${final}</b> · мод. ${mod >= 0 ? `+${mod}` : mod}`;
+      element.innerHTML = `<b>${final}</b> <span class="ability-mod">${mod >= 0 ? `+${mod}` : mod}</span>`;
     });
     const preview = document.querySelector('#creatorPreview');
-    if (preview) preview.innerHTML = `<strong>${esc(document.querySelector('#heroName')?.value.trim() || 'Новый герой')}</strong><span>${esc(race)} · ${esc(className)}</span><span>Базовые очки: ${total}/72</span><div class="bonus-preview">Бонусы: ${statList.filter(([key]) => bonuses[key]).map(([key,label]) => `${label} +${bonuses[key]}`).join(' · ')}</div>`;
+    if (preview) preview.innerHTML = `<strong>${esc(document.querySelector('#heroName')?.value.trim() || 'Новый герой')}</strong><span>${esc(race)} · ${esc(className)}</span><span>Базовые очки: ${total}/${BASE_POINTS}</span><div class="bonus-preview">Бонусы расы и класса: ${statList.filter(([key]) => bonuses[key]).map(([key,label]) => `${label} +${bonuses[key]}`).join(' · ') || 'нет'}</div>`;
   }
 
   const show = (message) => {
@@ -135,7 +174,17 @@
       app.innerHTML = creatorMarkup(draft);
       crumb.textContent = 'Создание героя';
       document.querySelector('#creatorBack').onclick = () => { location.hash = 'characters'; };
-      document.querySelectorAll('.stat-input,#heroName').forEach((input) => input.addEventListener('input', updateCreator));
+      document.querySelectorAll('.stat-input').forEach((input) => {
+        input.addEventListener('input', () => {
+          clampEditedStat(input);
+          updateCreator();
+        });
+        input.addEventListener('change', () => {
+          clampEditedStat(input);
+          updateCreator();
+        });
+      });
+      document.querySelector('#heroName').addEventListener('input', updateCreator);
       document.querySelector('#heroRace').onchange = updateCreator;
       document.querySelector('#heroClass').onchange = updateCreator;
       document.querySelector('#generateHero').onclick = async () => {
@@ -152,9 +201,11 @@
   async function createCharacter() {
     const errorBox = document.querySelector('#creatorError');
     try {
-      const abilities = Object.fromEntries(Array.from(document.querySelectorAll('.stat-input')).map((input) => [input.dataset.stat, Number(input.value)]));
+      document.querySelectorAll('.stat-input').forEach(clampEditedStat);
+      updateCreator();
+      const abilities = readAbilities();
       const total = statList.reduce((sum,[key]) => sum + abilities[key], 0);
-      if (total !== 72) throw new Error(`Нужно ровно 72 очка. Сейчас: ${total}`);
+      if (total !== BASE_POINTS) throw new Error(`Нужно ровно ${BASE_POINTS} базовых очка. Сейчас: ${total}`);
       const invalid = statList.find(([key]) => !Number.isInteger(abilities[key]) || abilities[key] < 1 || abilities[key] > 18);
       if (invalid) throw new Error(`База ${invalid[1]} должна быть целым числом от 1 до 18`);
       const name = document.querySelector('#heroName').value.trim();
