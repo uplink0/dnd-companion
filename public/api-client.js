@@ -10,9 +10,16 @@ async function request(path,options={}){
 }
 function activeId(){state.characterId=localStorage.getItem(ACTIVE_KEY)||null;return state.characterId;}
 function isChatPage(){return location.hash===''||location.hash==='#chat';}
+function rollCard(metadata){
+  const roll=metadata?.pendingRoll;
+  if(!roll)return '';
+  const payload=esc(JSON.stringify(roll));
+  const skill=roll.skill?` · ${esc(roll.skill)}`:'';
+  return `<div class="roll-request"><div><strong>Требуется ${esc(roll.check_type||'проверка')}</strong><small>${esc(roll.ability?.toUpperCase()||'')} ${skill} · КС ${esc(roll.dc)} · мод. ${roll.modifier>=0?'+':''}${esc(roll.modifier)}</small></div><button type="button" class="roll-request-button" data-pending-roll='${payload}'>🎲 Бросить d20</button></div>`;
+}
 function messageMarkup(message){
   const master=message.role==='MASTER';
-  return `<div class="message ${master?'master':''}"><span class="${master?'master-seal small':'portrait'}">${master?'✦':'И'}</span><div><div class="speaker">${master?'ИИ-Мастер':'Игрок'} <time>${new Date(message.created_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></div><p>${esc(message.body)}</p></div></div>`;
+  return `<div class="message ${master?'master':''}"><span class="${master?'master-seal small':'portrait'}">${master?'✦':'И'}</span><div><div class="speaker">${master?'ИИ-Мастер':'Ты'} <time>${message.created_at?new Date(message.created_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):''}</time></div><p>${esc(message.body)}</p>${master?rollCard(message.metadata):''}</div></div>`;
 }
 function updateChat(){
   const data=state.data;
@@ -20,7 +27,7 @@ function updateChat(){
   const character=data.character;
   const messages=document.querySelector('#messages');
   if(!character){
-    if(messages)messages.innerHTML='<div class="message master"><span class="master-seal small">✦</span><div><div class="speaker">ИИ-Мастер</div><p>Сначала выберите персонажа в разделе «Персонажи» и нажмите «Начать игру».</p></div></div>';
+    if(messages)messages.innerHTML='<div class="message master"><span class="master-seal small">✦</span><div><div class="speaker">ИИ-Мастер</div><p>Сначала выберите героя в разделе «Персонажи» и нажмите «Начать игру».</p></div></div>';
     return;
   }
   if(messages)messages.innerHTML=(data.messages||[]).map(messageMarkup).join('');
@@ -40,6 +47,7 @@ function updateChat(){
   if(locationCard)locationCard.innerHTML=location?`<div class="location-thumb">⌂</div><strong>${esc(location.name)}</strong><small>${esc(location.description||'')}</small>`:'<div class="state-note">Персонаж ещё не открыл ни одной локации.</div>';
   const form=document.querySelector('#composer');
   if(form)form.onsubmit=sendMessage;
+  document.querySelectorAll('[data-pending-roll]').forEach((button)=>button.onclick=()=>resolveRoll(button));
 }
 async function sendMessage(event){
   event.preventDefault();
@@ -50,14 +58,29 @@ async function sendMessage(event){
   if(!body)return;
   input.disabled=true;
   try{
-    const result=await request(`/campaigns/${state.campaignId}/messages`,{method:'POST',body:JSON.stringify({characterId:id,body})});
+    const result=await request(`/campaigns/${state.campaignId}/ai/messages`,{method:'POST',body:JSON.stringify({characterId:id,body})});
     if(!state.data?.messages)state.data={...(state.data||{}),messages:[]};
     state.data.messages.push(result.player,result.master);
     input.value='';
     updateChat();
+    if(result.pendingRoll){const messages=document.querySelector('#messages');if(messages)messages.scrollTop=messages.scrollHeight;}
+  }catch(error){window.alert(error.message)}finally{input.disabled=false;input.focus();}
+}
+async function resolveRoll(button){
+  const id=activeId();
+  if(!id)return;
+  let pending;
+  try{pending=JSON.parse(button.dataset.pendingRoll);}catch{return;}
+  button.disabled=true;
+  button.textContent='Бросок…';
+  try{
+    const result=await request(`/campaigns/${state.campaignId}/ai/roll`,{method:'POST',body:JSON.stringify({characterId:id,pendingRoll:pending})});
+    state.data.messages=(state.data.messages||[]).map(message=>message.metadata?.pendingRoll?{...message,metadata:{...message.metadata,pendingRoll:null}}:message);
+    state.data.messages.push(result.master);
+    updateChat();
     const messages=document.querySelector('#messages');
     if(messages)messages.scrollTop=messages.scrollHeight;
-  }catch(error){window.alert(error.message)}finally{input.disabled=false;input.focus();}
+  }catch(error){button.disabled=false;button.textContent='🎲 Бросить d20';window.alert(error.message)}
 }
 async function load(){
   if(!isChatPage())return;
