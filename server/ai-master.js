@@ -123,12 +123,14 @@ export async function handleRoll({campaignId,characterId,masterMessageId}) {
   const rolled=rollDice(`1d${rollSpec.sides}`);
   const total=rolled.diceTotal+rollSpec.modifier;
   const success=total>=rollSpec.dc;
+  const rollPayload={...rollSpec,die:rolled.diceTotal,total,success};
   const {rows}=await pool.query(`INSERT INTO dice_rolls(campaign_id,character_id,notation,dice_total,modifier,total,reason) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7) RETURNING *`,[campaignId,characterId,rollSpec.notation,rolled.diceTotal,rollSpec.modifier,total,rollSpec.reason]);
-  await pool.query(`INSERT INTO game_events(campaign_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload) VALUES($1::uuid,$2::uuid,'DICE_ROLL','CHARACTER',$2::uuid,$3)`,[campaignId,characterId,{rollId:rows[0].id,...rollSpec,die:rolled.diceTotal,total,success}]);
+  await pool.query(`INSERT INTO game_events(campaign_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload) VALUES($1::uuid,$2::uuid,'DICE_ROLL','CHARACTER',$2::uuid,$3)`,[campaignId,characterId,rollPayload]);
+  await pool.query(`INSERT INTO messages(campaign_id,character_id,role,body,metadata) VALUES($1::uuid,$2::uuid,'SYSTEM',$3,$4)`,[campaignId,characterId,'',{roll:rollPayload}]);
   await pool.query(`UPDATE messages SET metadata=jsonb_set(metadata,'{pendingRoll}','null'::jsonb) WHERE id=$1::uuid`,[masterMessageId]);
   const followup=await askModel([{role:'system',content:RULES},{role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ:\n${JSON.stringify(context)}`},{role:'system',content:`ИГРОВОЙ ДВИЖОК УЖЕ ВЫПОЛНИЛ БРОСОК ПОСЛЕ ЯВНОГО ДЕЙСТВИЯ ИГРОКА. Нельзя менять или придумывать результат. Проверка: ${JSON.stringify(rollSpec)}. Выпало: ${rolled.diceTotal}. Итог: ${total}. Успех: ${success}. Теперь опиши последствия. Новый бросок не запрашивай в этом ответе.`},{role:'user',content:'Продолжи сцену после результата проверки.'}]);
   let actionResult=null;
   if(followup.action)actionResult=await executeAction({campaignId,characterId,action:followup.action});
-  const master=await saveMasterMessage({campaignId,characterId,narrative:String(followup.narrative||'Мастер продолжает повествование.'),metadata:{ai:true,roll:{...rollSpec,die:rolled.diceTotal,total,success},action:followup.action||null,actionResult:actionResult?{eventId:actionResult.event?.id||null}:null}});
+  const master=await saveMasterMessage({campaignId,characterId,narrative:String(followup.narrative||'Мастер продолжает повествование.'),metadata:{ai:true,action:followup.action||null,actionResult:actionResult?{eventId:actionResult.event?.id||null}:null}});
   return {master,roll:{...rows[0],dice:rolled.dice,...rollSpec,success},pendingRoll:null};
 }
