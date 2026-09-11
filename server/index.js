@@ -19,5 +19,11 @@ app.use((error,req,res,next) => {
   res.status(status).json({ error:error.message, details:error.issues || undefined });
 });
 
-if (config.autoMigrate) await migrate();
-app.listen(config.port, () => console.log(`D&D Realm: http://localhost:${config.port}`));
+try {
+  if (config.autoMigrate) await migrate();
+  app.listen(config.port, () => console.log(`D&D Realm готов: http://localhost:${config.port}`));
+} catch (error) {
+  console.error('D&D Realm не запущен: миграция базы завершилась ошибкой', error);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  process.exit(1);
+}

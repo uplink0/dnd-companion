@@ -21,7 +21,15 @@ async function characterSummary(id) {
   return { ...derivedCharacter(rows[0]), effects: effects.rows, inventory: inventory.rows };
 }
 
-api.get('/health', (req,res) => res.json({ ok: true, service: 'dnd-realm' }));
+api.get('/health', asyncRoute(async (req,res) => {
+  const started=Date.now();
+  try {
+    await pool.query('SELECT 1');
+    res.json({ ok:true, service:'dnd-realm', database:'ready', responseMs:Date.now()-started });
+  } catch (error) {
+    res.status(503).json({ ok:false, service:'dnd-realm', database:'unavailable', error:error.message });
+  }
+}));
 api.get('/bootstrap', asyncRoute(async (req,res) => {
   const campaignId = String(req.query.campaignId || config.defaultCampaignId);
   const characterId = String(req.query.characterId || config.defaultCharacterId);
@@ -34,6 +42,7 @@ api.get('/bootstrap', asyncRoute(async (req,res) => {
     pool.query('SELECT * FROM journal_entries WHERE campaign_id=$1 ORDER BY created_at DESC LIMIT 40', [campaignId]),
     pool.query(`SELECT cr.id,cr.name,cr.creature_type,cr.challenge_rating,k.level,k.facts,CASE WHEN k.level IN ('STUDIED','COMPLETE') THEN cr.public_data ELSE '{}'::jsonb END details FROM knowledge_entries k JOIN creatures cr ON cr.id=k.subject_id WHERE k.campaign_id=$1 AND k.subject_type='CREATURE' AND k.level<>'UNKNOWN'`, [campaignId])
   ]);
+  if (!campaign.rows[0]) throw Object.assign(new Error('Кампания не найдена'), { status:404 });
   res.json({ campaign: campaign.rows[0], character, party: party.rows, quests: quests.rows, locations: locations.rows, messages: messages.rows.reverse(), journal: journal.rows, bestiary: bestiary.rows });
 }));
 api.get('/characters/:id/summary', asyncRoute(async (req,res) => res.json(await characterSummary(req.params.id))));
