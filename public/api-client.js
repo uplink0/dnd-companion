@@ -1,5 +1,5 @@
 const ACTIVE_KEY='dnd.activeCharacterId';
-const state={campaignId:'10000000-0000-4000-8000-000000000001',characterId:localStorage.getItem(ACTIVE_KEY)||null,data:null};
+const state={campaignId:'10000000-0000-4000-8000-000000000001',characterId:localStorage.getItem(ACTIVE_KEY)||null,data:null,loadToken:0};
 const esc=(value)=>String(value??'').replace(/[&<>\"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[char]));
 const fmt=(value)=>new Intl.NumberFormat('ru-RU').format(Number(value||0));
 async function request(path,options={}){
@@ -9,6 +9,7 @@ async function request(path,options={}){
   return data;
 }
 function activeId(){state.characterId=localStorage.getItem(ACTIVE_KEY)||null;return state.characterId;}
+function isChatPage(){return location.hash===''||location.hash==='#chat';}
 function messageMarkup(message){
   const master=message.role==='MASTER';
   return `<div class="message ${master?'master':''}"><span class="${master?'master-seal small':'portrait'}">${master?'✦':'И'}</span><div><div class="speaker">${master?'ИИ-Мастер':'Игрок'} <time>${new Date(message.created_at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></div><p>${esc(message.body)}</p></div></div>`;
@@ -50,6 +51,7 @@ async function sendMessage(event){
   input.disabled=true;
   try{
     const result=await request(`/campaigns/${state.campaignId}/messages`,{method:'POST',body:JSON.stringify({characterId:id,body})});
+    if(!state.data?.messages)state.data={...(state.data||{}),messages:[]};
     state.data.messages.push(result.player,result.master);
     input.value='';
     updateChat();
@@ -58,9 +60,25 @@ async function sendMessage(event){
   }catch(error){window.alert(error.message)}finally{input.disabled=false;input.focus();}
 }
 async function load(){
-  state.characterId=activeId();
-  try{state.data=await request(`/bootstrap?campaignId=${encodeURIComponent(state.campaignId)}${state.characterId?`&characterId=${encodeURIComponent(state.characterId)}`:''}`);updateChat();}
-  catch(error){console.error(error);const toast=document.querySelector('#toast');if(toast){toast.textContent=error.message||'Нет соединения с игровой базой';toast.classList.add('show');}}
+  if(!isChatPage())return;
+  const targetId=activeId();
+  const token=++state.loadToken;
+  try{
+    const data=await request(`/bootstrap?campaignId=${encodeURIComponent(state.campaignId)}${targetId?`&characterId=${encodeURIComponent(targetId)}`:''}`);
+    if(token!==state.loadToken||activeId()!==targetId||!isChatPage())return;
+    state.data=data;
+    updateChat();
+  }catch(error){
+    if(token!==state.loadToken||!isChatPage())return;
+    console.error(error);
+    const toast=document.querySelector('#toast');
+    if(toast){toast.textContent=error.message||'Нет соединения с игровой базой';toast.classList.add('show');}
+  }
 }
-window.addEventListener('dnd:active-character-changed',load);
+window.addEventListener('dnd:active-character-changed',()=>{
+  if(isChatPage()&&document.querySelector('#messages'))load();
+});
+window.addEventListener('dnd:page-rendered',(event)=>{
+  if(event.detail?.page==='chat')load();
+});
 window.addEventListener('DOMContentLoaded',load);
