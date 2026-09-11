@@ -5,6 +5,12 @@ import { pool } from './db.js';
 import { config } from './config.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const DEMO_CHARACTER_IDS = [
+  '30000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000002',
+  '30000000-0000-4000-8000-000000000003',
+  '30000000-0000-4000-8000-000000000004'
+];
 
 export async function migrate() {
   const client = await pool.connect();
@@ -16,6 +22,11 @@ export async function migrate() {
     )`);
     await client.query("INSERT INTO schema_migrations(version) VALUES('001_initial') ON CONFLICT DO NOTHING");
     if (config.seedDemo) await client.query(await readFile(resolve(root, 'db/seed.sql'), 'utf8'));
+
+    // The repository used to ship with demo heroes. They must not become
+    // real player characters after deployment or after a database restart.
+    // Keep the campaign/world seed, but always start the roster empty.
+    await client.query('DELETE FROM characters WHERE id = ANY($1::uuid[])', [DEMO_CHARACTER_IDS]);
   } finally {
     await client.query('SELECT pg_advisory_unlock($1)', [746361]).catch(() => {});
     client.release();
