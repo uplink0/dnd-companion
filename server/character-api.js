@@ -127,6 +127,11 @@ async function createCharacter(input) {
 
 characterApi.get('/options', (req, res) => res.json(publicOptions()));
 
+characterApi.get('/:id/summary', async (req, res) => {
+  const campaignId = z.string().uuid().parse(req.query.campaignId);
+  res.json(await characterSummary(req.params.id, campaignId));
+});
+
 characterApi.get('/', async (req, res) => {
   const campaignId = String(req.query.campaignId || '10000000-0000-4000-8000-000000000001');
   const { rows } = await pool.query(`
