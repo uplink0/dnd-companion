@@ -1,7 +1,7 @@
 (() => {
   const BASE_POINTS = 72;
   const STAT_KEYS = ['str','dex','con','int','wis','cha'];
-  let simplifyQueued = false;
+  let queued = false;
 
   const creatorExists = () => Boolean(document.querySelector('.character-creator'));
 
@@ -25,40 +25,35 @@
       return sum + (Number.isFinite(other) ? other : 0);
     }, 0);
 
-    // Capture phase runs before character-flow.js, so the edited value can never
-    // push the base-point pool above 72.
     const maxAllowed = Math.min(18, BASE_POINTS - othersTotal);
     input.value = String(Math.max(1, Math.min(value, maxAllowed)));
   }
 
-  function simplifyBonusDisplay() {
+  function simplifyCreatorDisplay() {
     if (!creatorExists()) return;
 
     document.querySelectorAll('.stat-input').forEach((input) => {
       const small = input.parentElement?.querySelector('small');
-      const modifier = small?.querySelector('.ability-mod')?.textContent?.trim();
-      if (small && modifier && small.textContent.trim() !== modifier) {
-        small.textContent = modifier;
+      if (small) {
+        small.textContent = '';
+        small.style.display = 'none';
       }
     });
 
     const total = currentTotal();
     const totalElement = document.querySelector('#statTotal');
     if (totalElement) {
-      if (totalElement.textContent !== String(total)) totalElement.textContent = total;
-      const invalid = total !== BASE_POINTS;
-      if (totalElement.classList.contains('invalid') !== invalid) {
-        totalElement.classList.toggle('invalid', invalid);
-      }
+      totalElement.textContent = total;
+      totalElement.classList.toggle('invalid', total !== BASE_POINTS);
     }
   }
 
   function queueSimplify() {
-    if (simplifyQueued) return;
-    simplifyQueued = true;
+    if (queued) return;
+    queued = true;
     queueMicrotask(() => {
-      simplifyQueued = false;
-      simplifyBonusDisplay();
+      queued = false;
+      simplifyCreatorDisplay();
     });
   }
 
