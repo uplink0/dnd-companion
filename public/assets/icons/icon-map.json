@@ -1,0 +1,38 @@
+{
+  "navigation": {
+    "chat": "icons/navigation/chat.svg",
+    "characters": "icons/navigation/characters.svg",
+    "map": "icons/navigation/map.svg",
+    "journal": "icons/navigation/journal.svg",
+    "bestiary": "icons/navigation/bestiary.svg",
+    "items": "icons/navigation/items.svg",
+    "handbook": "icons/navigation/handbook.svg"
+  },
+  "stats": {
+    "hp": "icons/stats/hp.svg",
+    "ac": "icons/stats/ac.svg",
+    "level": "icons/stats/level.svg",
+    "experience": "icons/stats/experience.svg",
+    "strength": "icons/stats/strength.svg",
+    "dexterity": "icons/stats/dexterity.svg",
+    "constitution": "icons/stats/constitution.svg",
+    "intelligence": "icons/stats/intelligence.svg",
+    "wisdom": "icons/stats/wisdom.svg",
+    "charisma": "icons/stats/charisma.svg"
+  },
+  "actions": {
+    "dice": "icons/actions/dice.svg",
+    "send": "icons/actions/send.svg",
+    "inventory": "icons/actions/inventory.svg",
+    "notes": "icons/actions/notes.svg",
+    "spells": "icons/actions/spells.svg",
+    "expand": "icons/actions/expand.svg",
+    "collapse": "icons/actions/collapse.svg"
+  },
+  "status": {
+    "positive": "icons/status/positive.svg",
+    "negative": "icons/status/negative.svg",
+    "temporaryHp": "icons/status/temporary-hp.svg",
+    "concentration": "icons/status/concentration.svg"
+  }
+}
