@@ -63,7 +63,15 @@ export async function characterSummary(id, campaignId = null) {
       ORDER BY i.name`, [id])
   ]);
 
-  return derivedCharacter({ ...rows[0], effects: effects.rows, inventory: inventory.rows });
+  const safeInventory = inventory.rows.map((entry) => {
+    const discovered = new Set(entry.discovered_properties || []);
+    const properties = Array.isArray(entry.properties)
+      ? entry.properties.filter((property) => property?.secret !== true || discovered.has(property.key))
+      : [];
+    return { ...entry, properties, discovered_properties: [...discovered] };
+  });
+
+  return derivedCharacter({ ...rows[0], effects: effects.rows, inventory: safeInventory });
 }
 
 async function createCharacter(input) {
