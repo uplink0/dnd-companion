@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { api } from './api.js';
 import { characterApi } from './character-api.js';
 import { playerApi } from './player-api.js';
+import { aiApi } from './ai-api.js';
 import { config } from './config.js';
 import { migrate } from './migrate.js';
 
@@ -14,6 +15,7 @@ app.use(helmet({contentSecurityPolicy:false,crossOriginOpenerPolicy:false,origin
 app.use(express.json({limit:'256kb'}));
 app.use('/api/characters',characterApi);
 app.use('/api/player',playerApi);
+app.use('/api',aiApi);
 app.use('/api',api);
 app.use(express.static(resolve(root,'public')));
 app.get('*',(req,res)=>res.sendFile(resolve(root,'public/index.html')));
