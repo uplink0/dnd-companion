@@ -49,13 +49,13 @@ jobs:
           OPENAI_BASE_URL: https://openrouter.ai/api/v1
           OPENAI_MODEL: openrouter/free
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
+          host: 194.147.215.29
+          username: ivan
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           envs: OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL
           script: |
             set -e
-            cd ${{ secrets.DEPLOY_PATH }}
+            cd /home/ivan/dnd-companion
 
             git fetch origin main
             git reset --hard origin/main
