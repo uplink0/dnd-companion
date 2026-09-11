@@ -1,0 +1,47 @@
+/* Keep every summary tile inside the chat column. */
+.hero-summary,.hero-summary *{min-width:0}
+.hero-summary{gap:10px;padding:10px 12px;overflow:visible}
+.hero-identity{gap:10px}.hero-avatar{width:48px;height:48px;flex-basis:48px}
+.hero-identity p{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35}
+.hero-stats{gap:5px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.hero-stat{gap:6px;padding:6px 7px;min-height:48px}
+.stat-icon{width:23px;height:23px;font-size:12px;flex:0 0 23px}
+.hero-stat strong{font-size:10px;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+.identity-tags{flex-wrap:wrap}
+.identity-tags span{padding:2px 6px}
+.hero-details{gap:8px;padding-top:10px}
+.abilities,.quick-stats,.saves>div,.resources>div{gap:4px}
+.abilities span,.quick-stats span,.resources>div>span,.saves span{padding:5px}
+.quick-stats small,.resources small{white-space:normal;line-height:1.15}
+.summary-note{line-height:1.4;overflow-wrap:anywhere}
+
+/* Compact closed state: no oversized empty tiles or clipped EXP. */
+.hero-summary.collapsed{grid-template-columns:minmax(230px,1fr) minmax(390px,460px)}
+.hero-summary.collapsed .hero-identity{padding-right:0}
+.hero-summary.collapsed .hero-stats{padding-right:102px}
+.hero-summary.collapsed .hero-stat:nth-child(4) strong{font-size:9px}
+.summary-toggle{right:10px;top:10px;padding:5px 7px;max-width:96px;line-height:1.15}
+
+/* An opened sheet grows downward and uses normal page scrolling. */
+.chat-layout:has(.hero-summary:not(.collapsed)){height:auto;min-height:calc(100vh - 102px);align-items:start}
+.chat-panel:has(.hero-summary:not(.collapsed)){overflow:visible;min-height:calc(100vh - 102px)}
+.chat-panel:has(.hero-summary:not(.collapsed)) .messages{min-height:390px;max-height:56vh}
+main:has(.hero-summary:not(.collapsed)){overflow:visible}
+
+@media(max-width:1380px){
+  .hero-summary.collapsed{grid-template-columns:minmax(210px,1fr) minmax(350px,420px)}
+  .hero-summary.collapsed .hero-stats{padding-right:92px}
+  .summary-toggle{max-width:86px}
+}
+@media(max-width:1180px){
+  .hero-summary.collapsed{grid-template-columns:1fr}
+  .hero-summary.collapsed .hero-stats{padding-right:105px}
+  .chat-panel:has(.hero-summary:not(.collapsed)) .messages{max-height:none}
+}
+@media(max-width:700px){
+  .hero-summary{padding:9px}
+  .hero-summary.collapsed .hero-stats{padding-right:34px}
+  .summary-toggle{right:7px;top:7px}
+  .chat-panel:has(.hero-summary:not(.collapsed)){min-height:0}
+  .chat-panel:has(.hero-summary:not(.collapsed)) .messages{min-height:320px}
+}

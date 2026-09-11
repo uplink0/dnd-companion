@@ -1,0 +1,26 @@
+/* Expanded summary always stays inside its own bordered area. */
+.chat-panel,.hero-summary,.hero-details,.hero-stats,.detail-group{max-width:100%}
+.hero-summary{width:calc(100% - 24px);justify-self:start;overflow:hidden}
+.hero-summary:not(.collapsed){grid-template-columns:minmax(0,1fr);padding:10px 12px 12px}
+.hero-summary:not(.collapsed) .hero-identity{padding-right:112px}
+.hero-summary:not(.collapsed) .hero-stats{width:100%;grid-template-columns:repeat(4,minmax(0,1fr));padding:0}
+.hero-summary:not(.collapsed) .hero-details{width:100%;overflow:hidden}
+.hero-summary:not(.collapsed) .summary-toggle{right:10px;top:10px}
+.chat-panel:has(.hero-summary:not(.collapsed)){overflow:hidden}
+.detail-group{overflow:hidden}
+.abilities span,.quick-stats span,.saves span,.resources>div>span{overflow:hidden}
+.abilities small,.quick-stats small,.resources small,.saves span{overflow-wrap:anywhere}
+
+@media(max-width:1380px){
+  .hero-summary:not(.collapsed) .hero-details{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .hero-summary:not(.collapsed) .hero-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:900px){
+  .hero-summary:not(.collapsed) .hero-details{grid-template-columns:minmax(0,1fr)}
+  .hero-summary:not(.collapsed) .hero-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .hero-summary{width:calc(100% - 20px)}
+  .hero-summary:not(.collapsed) .hero-identity{padding-right:38px}
+  .hero-summary:not(.collapsed) .hero-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

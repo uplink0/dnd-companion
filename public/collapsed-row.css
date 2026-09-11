@@ -1,0 +1,19 @@
+/* Closed summary mirrors the clean header of the expanded character sheet. */
+.hero-summary.collapsed{grid-template-columns:minmax(0,1fr)!important;gap:9px;padding:10px 12px 12px}
+.hero-summary.collapsed .hero-identity{display:flex!important;padding-right:118px}
+.hero-summary.collapsed .hero-identity p{display:block;max-width:720px}
+.hero-summary.collapsed .identity-tags{margin-top:5px}
+.hero-summary.collapsed .hero-stats{width:100%;padding:0!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.hero-summary.collapsed .hero-stat{min-height:58px;padding:7px 10px}
+.hero-summary.collapsed .hero-stat:nth-child(4){display:flex}
+.hero-summary.collapsed .hero-stat strong{font-size:11px;white-space:normal}
+.hero-summary.collapsed .summary-toggle{right:10px;top:10px}
+
+@media(max-width:900px){
+  .hero-summary.collapsed .hero-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .hero-summary.collapsed .hero-identity{display:flex!important;padding-right:40px}
+  .hero-summary.collapsed .hero-identity p{display:none}
+  .hero-summary.collapsed .hero-stats{grid-template-columns:repeat(2,minmax(0,1fr));padding:0!important}
+}

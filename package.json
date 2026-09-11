@@ -1,0 +1,21 @@
+{
+  "name": "dnd-companion",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "D&D Realm — игровой помощник с чатом мастера и общей моделью кампании",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "db:init": "node server/migrate.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1"
+  }
+}
