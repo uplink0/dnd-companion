@@ -6,7 +6,7 @@ function formatRollResultCard(root,roll){
   const total=roll.total??(die==null?null:Number(die)+Number(roll.modifier||0));
   const modifier=Number(roll.modifier||0);
   const ability=ROLL_ABILITY_NAMES[String(roll.ability||'').toUpperCase()]||'модификатор';
-  root.innerHTML=`<strong>🎲 Бросок d${sides}</strong><div>Выпало: <b>${die==null?'—':esc(String(die))}</b> <span class="roll-modifier">${modifier>=0?'+':''}${esc(String(modifier))} ${esc(ability)}</span></div><div>Итог: <b>${total==null?'—':esc(String(total))}</b>${roll.dc!=null?` <span class="roll-outcome">${roll.success?'Успех':'Неудача'}</span>`:''}</div>`;
+  root.innerHTML=`<strong>🎲 Бросок d${sides}</strong><div>Выпало: <b>${die==null?'—':esc(String(die))}</b> <span class="roll-modifier">${modifier>=0?'+':''}${esc(String(modifier))} ${esc(ability)}</span></div><div>Итог: <b>${total==null?'—':esc(String(total))}</b>${roll.dc!=null?` <span class="roll-outcome">${roll.success?'Успех':'Неудача'} · КС ${esc(String(roll.dc))}</span>`:''}</div>`;
 }
 async function refreshRollDisplay(){
   const results=[...document.querySelectorAll('.roll-result')];
