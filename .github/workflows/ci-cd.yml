@@ -58,13 +58,14 @@ jobs:
         uses: appleboy/ssh-action@v1.2.2
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENAI_BASE_URL: https://openrouter.ai/api/v1
           OPENAI_MODEL: openrouter/free
         with:
           host: 194.147.215.29
           username: ivan
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL
+          envs: OPENAI_API_KEY,OPENROUTER_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL
           script: |
             set -e
             cd /home/ivan/dnd-companion
@@ -72,14 +73,15 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            if [ -n "$OPENAI_API_KEY" ]; then
-              OPENAI_API_KEY="$(printf '%s' "$OPENAI_API_KEY" | tr -d '\r\n' | xargs)"
-            fi
+            AI_API_KEY="${OPENROUTER_API_KEY:-$OPENAI_API_KEY}"
+            AI_API_KEY="$(printf '%s' "$AI_API_KEY" | tr -d '\r\n' | xargs)"
 
             touch .env
-            grep -v '^OPENAI_API_KEY=' .env > .env.tmp || true
-            mv .env.tmp .env
-            printf '\nOPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" >> .env
+            if [ -n "$AI_API_KEY" ]; then
+              grep -v '^OPENAI_API_KEY=' .env > .env.tmp || true
+              mv .env.tmp .env
+              printf '\nOPENAI_API_KEY=%s\n' "$AI_API_KEY" >> .env
+            fi
             grep -v '^OPENAI_BASE_URL=' .env > .env.tmp || true
             mv .env.tmp .env
             printf 'OPENAI_BASE_URL=%s\n' "$OPENAI_BASE_URL" >> .env
