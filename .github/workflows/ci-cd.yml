@@ -1,0 +1,93 @@
+name: DND Realm CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Syntax check server
+        run: |
+          node --check server/index.js
+          node --check server/api.js
+          node --check server/character-api.js
+          node --check server/player-api.js
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to AtlasInfra
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: https://openrouter.ai/api/v1
+          OPENAI_MODEL: openrouter/free
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            git fetch origin main
+            git reset --hard origin/main
+
+            if [ -n "$OPENAI_API_KEY" ]; then
+              OPENAI_API_KEY="$(printf '%s' "$OPENAI_API_KEY" | tr -d '\r\n' | xargs)"
+            fi
+
+            touch .env
+            grep -v '^OPENAI_API_KEY=' .env > .env.tmp || true
+            mv .env.tmp .env
+            printf '\nOPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" >> .env
+            grep -v '^OPENAI_BASE_URL=' .env > .env.tmp || true
+            mv .env.tmp .env
+            printf 'OPENAI_BASE_URL=%s\n' "$OPENAI_BASE_URL" >> .env
+            grep -v '^OPENAI_MODEL=' .env > .env.tmp || true
+            mv .env.tmp .env
+            printf 'OPENAI_MODEL=%s\n' "$OPENAI_MODEL" >> .env
+
+            docker compose up -d --build
+            docker compose ps
+
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:3000/api/health; then
+                echo "Application is healthy"
+                exit 0
+              fi
+              echo "Waiting for application... attempt $i/30"
+              sleep 2
+            done
+
+            echo "Application healthcheck failed"
+            docker compose logs --tail=120
+            exit 1
