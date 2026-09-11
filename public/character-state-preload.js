@@ -2,7 +2,7 @@
   const KEY='dnd.activeCharacterId';
   const nativeFetch=window.fetch.bind(window);
   const activeId=()=>localStorage.getItem(KEY)||null;
-
+  const clearIfMissing=async(id,response)=>{if(response.status===404&&localStorage.getItem(KEY)===id){localStorage.removeItem(KEY);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id:null}}));}};
   const refreshProfile=async()=>{
     try{
       const profile=document.querySelector('.profile');
@@ -12,20 +12,17 @@
       const label=profile.querySelector('span:nth-of-type(2)');
       if(!id){if(avatar)avatar.textContent='?';if(label)label.textContent='Игрок';return;}
       const response=await nativeFetch(`/api/characters/${encodeURIComponent(id)}/summary`);
-      if(!response.ok)return;
+      if(!response.ok){await clearIfMissing(id,response);return;}
       const character=await response.json();
       if(avatar)avatar.textContent=String(character.name||'?')[0];
       if(label)label.textContent=character.name||'Игрок';
     }catch{}
   };
-
   window.dndActiveCharacterId=activeId;
-  window.dndSetActiveCharacter=(id)=>{localStorage.setItem(KEY,id);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id}}));refreshProfile();};
+  window.dndSetActiveCharacter=id=>{localStorage.setItem(KEY,id);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id}}));refreshProfile();};
   window.dndClearActiveCharacter=()=>{localStorage.removeItem(KEY);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id:null}}));refreshProfile();};
-
   window.fetch=async(input,init={})=>{
-    const requestUrl=typeof input==='string'?input:input.url;
-    const url=new URL(requestUrl,location.origin);
+    const requestUrl=typeof input==='string'?input:input.url,url=new URL(requestUrl,location.origin);
     if(!url.pathname.startsWith('/api/')||url.pathname.startsWith('/api/player/'))return nativeFetch(input,init);
     const id=activeId();
     const method=String(init.method||(typeof input!=='string'&&input.method)||'GET').toUpperCase();
@@ -42,7 +39,6 @@
     const headers=new Headers(init.headers||{});if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
     return nativeFetch(url.toString(),{...init,headers,body:JSON.stringify(body)});
   };
-
-  window.addEventListener('dnd:active-character-changed',()=>refreshProfile());
-  window.addEventListener('DOMContentLoaded',()=>refreshProfile());
+  window.addEventListener('dnd:active-character-changed',refreshProfile);
+  window.addEventListener('DOMContentLoaded',refreshProfile);
 })();
