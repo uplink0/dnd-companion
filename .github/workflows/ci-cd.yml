@@ -31,6 +31,8 @@ jobs:
         run: |
           node --check server/index.js
           node --check server/api.js
+          node --check server/ai-api.js
+          node --check server/ai-master.js
           node --check server/character-api.js
           node --check server/character-rules.js
           node --check server/game-engine.js
