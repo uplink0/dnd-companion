@@ -3,9 +3,25 @@
   const nativeFetch=window.fetch.bind(window);
   const activeId=()=>localStorage.getItem(KEY)||null;
 
+  const refreshProfile=async()=>{
+    try{
+      const profile=document.querySelector('.profile');
+      if(!profile)return;
+      const id=activeId();
+      const avatar=profile.querySelector('.avatar');
+      const label=profile.querySelector('span:nth-of-type(2)');
+      if(!id){if(avatar)avatar.textContent='?';if(label)label.textContent='Игрок';return;}
+      const response=await nativeFetch(`/api/characters/${encodeURIComponent(id)}/summary`);
+      if(!response.ok)return;
+      const character=await response.json();
+      if(avatar)avatar.textContent=String(character.name||'?')[0];
+      if(label)label.textContent=character.name||'Игрок';
+    }catch{}
+  };
+
   window.dndActiveCharacterId=activeId;
-  window.dndSetActiveCharacter=(id)=>{localStorage.setItem(KEY,id);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id}}));};
-  window.dndClearActiveCharacter=()=>{localStorage.removeItem(KEY);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id:null}}));};
+  window.dndSetActiveCharacter=(id)=>{localStorage.setItem(KEY,id);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id}}));refreshProfile();};
+  window.dndClearActiveCharacter=()=>{localStorage.removeItem(KEY);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id:null}}));refreshProfile();};
 
   window.fetch=async(input,init={})=>{
     const requestUrl=typeof input==='string'?input:input.url;
@@ -27,14 +43,6 @@
     return nativeFetch(url.toString(),{...init,headers,body:JSON.stringify(body)});
   };
 
-  window.addEventListener('DOMContentLoaded',async()=>{
-    try{
-      const id=activeId();
-      const profile=document.querySelector('.profile');
-      if(!profile)return;
-      if(!id){const avatar=profile.querySelector('.avatar');const label=profile.querySelector('span:nth-of-type(2)');if(avatar)avatar.textContent='?';if(label)label.textContent='Игрок';return;}
-      const response=await nativeFetch(`/api/characters/${encodeURIComponent(id)}/summary`);if(!response.ok)return;
-      const character=await response.json();const avatar=profile.querySelector('.avatar');const label=profile.querySelector('span:nth-of-type(2)');if(avatar)avatar.textContent=String(character.name||'?')[0];if(label)label.textContent=character.name||'Игрок';
-    }catch{}
-  });
+  window.addEventListener('dnd:active-character-changed',()=>refreshProfile());
+  window.addEventListener('DOMContentLoaded',()=>refreshProfile());
 })();
