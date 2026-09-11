@@ -44,14 +44,14 @@ function validateCharacterInput(body) {
 
 export async function characterSummary(id, campaignId = null) {
   const query = campaignId
-    ? 'SELECT * FROM characters WHERE id=$1 AND campaign_id=$2'
-    : 'SELECT * FROM characters WHERE id=$1';
+    ? 'SELECT * FROM characters WHERE id=$1::uuid AND campaign_id=$2::uuid'
+    : 'SELECT * FROM characters WHERE id=$1::uuid';
   const params = campaignId ? [id, campaignId] : [id];
   const { rows } = await pool.query(query, params);
   if (!rows[0]) throw Object.assign(new Error('Персонаж не найден в этой кампании'), { status: 404 });
 
   const [effects, inventory] = await Promise.all([
-    pool.query('SELECT * FROM effects WHERE target_character_id=$1 AND active ORDER BY started_at DESC', [id]),
+    pool.query('SELECT * FROM effects WHERE target_character_id=$1::uuid AND campaign_id=$2::uuid AND active ORDER BY started_at DESC', [id, campaignId || rows[0].campaign_id]),
     pool.query(`
       SELECT ie.id,ie.quantity,ie.equipped,ie.attuned,ie.charges,
              COALESCE(ie.custom_name,i.name) name,i.item_type,i.rarity,i.description,i.properties,
@@ -59,7 +59,7 @@ export async function characterSummary(id, campaignId = null) {
       FROM inventory_entries ie
       JOIN items i ON i.id=ie.item_id
       LEFT JOIN item_discoveries d ON d.inventory_entry_id=ie.id
-      WHERE ie.character_id=$1
+      WHERE ie.character_id=$1::uuid
       GROUP BY ie.id,i.id
       ORDER BY i.name`, [id])
   ]);
@@ -80,7 +80,7 @@ async function createCharacter(input) {
   const stats = deriveStats(baseAbilities, input.race, input.className);
 
   return transaction(async (client) => {
-    const campaign = (await client.query('SELECT owner_id FROM campaigns WHERE id=$1', [input.campaignId])).rows[0];
+    const campaign = (await client.query('SELECT owner_id FROM campaigns WHERE id=$1::uuid', [input.campaignId])).rows[0];
     if (!campaign) throw Object.assign(new Error('Кампания не найдена'), { status: 404 });
 
     const result = (await client.query(`
@@ -89,7 +89,7 @@ async function createCharacter(input) {
         hp,hp_max,armor_class,initiative,proficiency_bonus,spell_save_dc,spell_attack_bonus,
         hit_dice,abilities,biography
       )
-      VALUES($1,$2,'PLAYER',$3,$4,$5,$6,'Новичок',1,0,300,$7,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      VALUES($1::uuid,$2::uuid,'PLAYER',$3,$4,$5,$6,'Новичок',1,0,300,$7,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *`, [
       input.campaignId,
       campaign.owner_id,
@@ -110,14 +110,29 @@ async function createCharacter(input) {
 
     await client.query(
       `INSERT INTO party_members(campaign_id,character_id,recruitment_type)
-       VALUES($1,$2,'START')
+       VALUES($1::uuid,$2::uuid,'START')
        ON CONFLICT(campaign_id,character_id) DO UPDATE SET active=true`,
       [input.campaignId, result.id]
     );
 
+    const startingLocation = (await client.query(`
+      SELECT id FROM locations
+      WHERE campaign_id=$1::uuid AND discovered
+      ORDER BY visited DESC, name
+      LIMIT 1`, [input.campaignId])).rows[0];
+
+    if (startingLocation) {
+      await client.query(`
+        INSERT INTO knowledge_entries(campaign_id,character_id,subject_type,subject_id,level,facts)
+        VALUES($1::uuid,$2::uuid,'LOCATION',$3::uuid,'SEEN','[]'::jsonb)
+        ON CONFLICT(character_id,subject_type,subject_id) DO NOTHING`,
+        [input.campaignId, result.id, startingLocation.id]
+      );
+    }
+
     await client.query(`
       INSERT INTO game_events(campaign_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload)
-      VALUES($1,$2,'CHARACTER_CREATED','CHARACTER',$2,$3)`, [
+      VALUES($1::uuid,$2::uuid,'CHARACTER_CREATED','CHARACTER',$2::uuid,$3)`, [
       input.campaignId,
       result.id,
       {
@@ -126,7 +141,8 @@ async function createCharacter(input) {
         className: result.class_name,
         baseAbilities,
         raceBonuses: RACES[input.race],
-        classBonuses: CLASSES[input.className].bonuses
+        classBonuses: CLASSES[input.className].bonuses,
+        startingLocationId: startingLocation?.id || null
       }
     ]);
 
@@ -142,13 +158,13 @@ characterApi.get('/:id/summary', async (req, res) => {
 });
 
 characterApi.get('/', async (req, res) => {
-  const campaignId = String(req.query.campaignId || config.defaultCampaignId);
+  const campaignId = z.string().uuid().parse(req.query.campaignId || config.defaultCampaignId);
   const { rows } = await pool.query(`
     SELECT id,campaign_id,kind,name,race,class_name,rank,level,xp,xp_next,hp,hp_max,
            armor_class,initiative,proficiency_bonus,spell_save_dc,spell_attack_bonus,
            hit_dice,abilities,biography,created_at
     FROM characters
-    WHERE campaign_id=$1 AND kind='PLAYER'
+    WHERE campaign_id=$1::uuid AND kind='PLAYER'
     ORDER BY created_at`, [campaignId]);
   res.json(rows.map(derivedCharacter));
 });
