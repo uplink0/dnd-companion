@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { pool, transaction } from './db.js';
+import { config } from './config.js';
 import { derivedCharacter } from './rules.js';
 import {
   BACKGROUNDS,
@@ -141,7 +142,7 @@ characterApi.get('/:id/summary', async (req, res) => {
 });
 
 characterApi.get('/', async (req, res) => {
-  const campaignId = String(req.query.campaignId || '10000000-0000-4000-8000-000000000001');
+  const campaignId = String(req.query.campaignId || config.defaultCampaignId);
   const { rows } = await pool.query(`
     SELECT id,campaign_id,kind,name,race,class_name,rank,level,xp,xp_next,hp,hp_max,
            armor_class,initiative,proficiency_bonus,spell_save_dc,spell_attack_bonus,
