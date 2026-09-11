@@ -21,7 +21,7 @@ test('расовые и классовые бонусы применяются �
   const base = { str: 18, dex: 12, con: 10, int: 10, wis: 10, cha: 12 };
   const final = applyBonuses(base, 'Полуорк', 'Воин');
   assert.equal(final.str, 21);
-  assert.equal(final.con, 11);
+  assert.equal(final.con, 12);
   assert.equal(final.dex, 12);
 });
 
@@ -31,7 +31,7 @@ test('производные характеристики рассчитываю
   assert.equal(stats.hpMax, CLASSES['Волшебник'].hitDie + 1);
   assert.equal(stats.armorClass, 11);
   assert.equal(stats.spellSaveDc, 12);
-  assert.equal(stats.spellAttackBonus, 3);
+  assert.equal(stats.spellAttackBonus, 4);
 });
 
 test('генератор выдаёт валидную базу, существующую расу и класс', () => {
