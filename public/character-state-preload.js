@@ -1,8 +1,14 @@
 (() => {
+  const CAMPAIGN_ID='10000000-0000-4000-8000-000000000001';
   const KEY='dnd.activeCharacterId';
   const nativeFetch=window.fetch.bind(window);
   const activeId=()=>localStorage.getItem(KEY)||null;
-  const clearIfMissing=async(id,response)=>{if(response.status===404&&localStorage.getItem(KEY)===id){localStorage.removeItem(KEY);window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id:null}}));}};
+  const clearIfMissing=async(id,response)=>{
+    if(response.status===404&&localStorage.getItem(KEY)===id){
+      localStorage.removeItem(KEY);
+      window.dispatchEvent(new CustomEvent('dnd:active-character-changed',{detail:{id:null}}));
+    }
+  };
   const refreshProfile=async()=>{
     try{
       const profile=document.querySelector('.profile');
@@ -11,7 +17,7 @@
       const avatar=profile.querySelector('.avatar');
       const label=profile.querySelector('span:nth-of-type(2)');
       if(!id){if(avatar)avatar.textContent='?';if(label)label.textContent='Игрок';return;}
-      const response=await nativeFetch(`/api/characters/${encodeURIComponent(id)}/summary`);
+      const response=await nativeFetch(`/api/characters/${encodeURIComponent(id)}/summary?campaignId=${encodeURIComponent(CAMPAIGN_ID)}`);
       if(!response.ok){await clearIfMissing(id,response);return;}
       const character=await response.json();
       if(avatar)avatar.textContent=String(character.name||'?')[0];
@@ -36,7 +42,8 @@
     if(url.pathname.endsWith('/accept')&&url.pathname.includes('/quests/'))body.characterId=id;
     if(url.pathname.endsWith('/identify')&&url.pathname.includes('/items/'))body.characterId=id;
     if(url.pathname.endsWith('/party/recruit'))body.actorId=id;
-    const headers=new Headers(init.headers||{});if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
+    const headers=new Headers(init.headers||{});
+    if(!headers.has('Content-Type'))headers.set('Content-Type','application/json');
     return nativeFetch(url.toString(),{...init,headers,body:JSON.stringify(body)});
   };
   window.addEventListener('dnd:active-character-changed',refreshProfile);
