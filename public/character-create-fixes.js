@@ -25,8 +25,8 @@
       return sum + (Number.isFinite(other) ? other : 0);
     }, 0);
 
-    // Character flow also has a client-side clamp, but this guard runs in capture
-    // phase first, so a value that would push the base pool over 72 never reaches it.
+    // Capture phase runs before character-flow.js, so the edited value can never
+    // push the base-point pool above 72.
     const maxAllowed = Math.min(18, BASE_POINTS - othersTotal);
     input.value = String(Math.max(1, Math.min(value, maxAllowed)));
   }
@@ -37,15 +37,19 @@
     document.querySelectorAll('.stat-input').forEach((input) => {
       const small = input.parentElement?.querySelector('small');
       const modifier = small?.querySelector('.ability-mod')?.textContent?.trim();
-      if (small && modifier) small.textContent = modifier;
+      if (small && modifier && small.textContent.trim() !== modifier) {
+        small.textContent = modifier;
+      }
     });
 
-    // Keep the visible total truthful. Saving is still server-validated at exactly 72.
     const total = currentTotal();
     const totalElement = document.querySelector('#statTotal');
     if (totalElement) {
-      totalElement.textContent = total;
-      totalElement.classList.toggle('invalid', total !== BASE_POINTS);
+      if (totalElement.textContent !== String(total)) totalElement.textContent = total;
+      const invalid = total !== BASE_POINTS;
+      if (totalElement.classList.contains('invalid') !== invalid) {
+        totalElement.classList.toggle('invalid', invalid);
+      }
     }
   }
 
