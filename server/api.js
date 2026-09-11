@@ -52,7 +52,7 @@ api.get('/bootstrap', asyncRoute(async (req, res) => {
       LEFT JOIN effects e ON e.target_character_id=c.id AND e.active
       WHERE p.campaign_id=$1 AND p.active AND c.kind IN ('PLAYER','COMPANION','MERCENARY')
       GROUP BY c.id
-      ORDER BY p.joined_at`, [campaignId]),
+      ORDER BY MIN(p.joined_at)`, [campaignId]),
     pool.query(`
       SELECT q.*,COALESCE(json_agg(o.* ORDER BY o.sort_order) FILTER(WHERE o.id IS NOT NULL),'[]') objectives
       FROM quests q
@@ -71,7 +71,12 @@ api.get('/bootstrap', asyncRoute(async (req, res) => {
       ORDER BY created_at DESC LIMIT 40`, [campaignId, characterId]),
     pool.query(`
       SELECT * FROM game_events
-      WHERE campaign_id=$1 AND ($2='' OR actor_character_id=$2 OR (aggregate_type='CHARACTER' AND aggregate_id=$2))
+      WHERE campaign_id=$1
+        AND (
+          $2='' OR
+          actor_character_id=$2::uuid OR
+          (aggregate_type='CHARACTER' AND aggregate_id=$2::text)
+        )
       ORDER BY sequence DESC LIMIT 100`, [campaignId, characterId]),
     characterId
       ? pool.query(`
@@ -112,7 +117,10 @@ api.get('/campaigns/:id/quests', asyncRoute(async (req, res) => {
 api.get('/campaigns/:id/events', asyncRoute(async (req, res) => {
   const characterId = String(req.query.characterId || '');
   const query = characterId
-    ? `SELECT * FROM game_events WHERE campaign_id=$1 AND (actor_character_id=$2 OR (aggregate_type='CHARACTER' AND aggregate_id=$2)) ORDER BY sequence DESC LIMIT 100`
+    ? `SELECT * FROM game_events
+       WHERE campaign_id=$1
+         AND (actor_character_id=$2::uuid OR (aggregate_type='CHARACTER' AND aggregate_id=$2::text))
+       ORDER BY sequence DESC LIMIT 100`
     : `SELECT * FROM game_events WHERE campaign_id=$1 ORDER BY sequence DESC LIMIT 100`;
   const rows = (await pool.query(query, characterId ? [req.params.id, characterId] : [req.params.id])).rows;
   res.json(rows.reverse());
