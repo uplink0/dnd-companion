@@ -1,0 +1,28 @@
+{
+  "name": "dnd-realm",
+  "version": "1.0.0",
+  "description": "D&D Realm read-only campaign context for ChatGPT and compatible MCP hosts.",
+  "author": {
+    "name": "uplink0",
+    "url": "https://github.com/uplink0"
+  },
+  "homepage": "https://atlas-infra.ru",
+  "repository": "https://github.com/uplink0/dnd-companion",
+  "license": "MIT",
+  "keywords": ["dnd", "mcp", "chatgpt", "campaign", "game-state"],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "D&D Realm",
+    "shortDescription": "D&D campaign context through MCP",
+    "longDescription": "Read-only access to character state, campaign state and recent game history from D&D Realm.",
+    "developerName": "uplink0",
+    "category": "Games",
+    "capabilities": ["Read"],
+    "websiteURL": "https://atlas-infra.ru",
+    "defaultPrompt": [
+      "Show my current D&D character state.",
+      "Summarize the current campaign state.",
+      "What happened recently in my campaign?"
+    ]
+  }
+}
