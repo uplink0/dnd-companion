@@ -33,7 +33,7 @@ const RULES = `
 Допустимые действия:
 - DISCOVER_ITEM: когда в текущей сцене впервые обнаружен конкретный предмет. Укажи name, description и item_spec, но предмет ещё НЕ попадает в инвентарь.
 - RECEIVE_ITEM: только когда игрок явно решил взять/поднять/забрать конкретный ранее обнаруженный предмет. Используй существующий scene_item_id из контекста.
-- RETURN_ITEM: только когда игрок явно решил положить/вернуть конкретный ранее взятый предмет обратно туда, откуда он был взят. Используй существующий scene_item_id из контекста. Не возвращай предмет только потому, что игрок его осматривает или упоминает.
+- RETURN_ITEM: только когда игрок явно решил положить/оставить/уронить/вернуть конкретный ранее взятый предмет. Если игрок возвращает предмет туда, откуда он был взят, используй destination.type="ORIGINAL_LOCATION". Если игрок кладёт предмет в другое место текущей сцены (на пол, на стол, под кровать, у стены и т.п.), используй destination.type="SCENE_LOCATION" и кратко опиши точное место в destination.description. Используй существующий scene_item_id из контекста. Не возвращай предмет только потому, что игрок его осматривает или упоминает.
 - USE_ITEM, DISCOVER_LOCATION, DISCOVER_CREATURE — только с существующими ID из контекста.
 Не создавай предмет в инвентаре только потому, что он упомянут. Сначала предмет должен быть обнаружен, затем игрок должен явно выбрать его взять.
 `;
@@ -124,7 +124,7 @@ async function executeAction({campaignId,characterId,action,sourceMessageId}) {
   if(action.type==='DISCOVER_CREATURE')return discoverCreature({campaignId,characterId,creatureId:action.creature_id,level:action.level||'SEEN',facts:Array.isArray(action.facts)?action.facts:[]});
   if(action.type==='DISCOVER_ITEM')return discoverItem({campaignId,characterId,sourceMessageId,item:action.item_spec||action});
   if(action.type==='RECEIVE_ITEM')return receiveSceneItem({campaignId,characterId,sceneItemId:action.scene_item_id});
-  if(action.type==='RETURN_ITEM')return returnSceneItem({campaignId,characterId,actorId:characterId,sceneItemId:action.scene_item_id});
+  if(action.type==='RETURN_ITEM')return returnSceneItem({campaignId,characterId,actorId:characterId,sceneItemId:action.scene_item_id,destination:action.destination||null});
   throw Object.assign(new Error('AI-Мастер запросил неподдерживаемое игровое действие'),{status:400});
 }
 
