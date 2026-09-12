@@ -3,8 +3,12 @@ import 'dotenv/config';
 const aiProvider = String(process.env.AI_PROVIDER || (process.env.OPENROUTER_API_KEY ? 'openrouter' : 'openai')).toLowerCase();
 const useOpenRouter = aiProvider === 'openrouter';
 const aiApiKey = useOpenRouter ? (process.env.OPENROUTER_API_KEY || '') : (process.env.OPENAI_API_KEY || '');
-const aiBaseUrl = process.env.OPENAI_BASE_URL || (useOpenRouter ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1');
-const aiModel = process.env.OPENAI_MODEL || (useOpenRouter ? 'openrouter/free' : 'gpt-5.6-luna');
+const aiBaseUrl = useOpenRouter
+  ? (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1')
+  : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+const aiModel = useOpenRouter
+  ? (process.env.OPENROUTER_MODEL || 'openrouter/free')
+  : (process.env.OPENAI_MODEL || 'gpt-5.6-luna');
 
 export const config = {
   port: Number(process.env.PORT || 3000),
