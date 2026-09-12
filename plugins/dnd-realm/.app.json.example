@@ -1,0 +1,5 @@
+{
+  "appId": "REPLACE_WITH_OPENAI_ASDK_APP_ID",
+  "name": "D&D Realm",
+  "mcpServerUrl": "https://atlas-infra.ru/mcp/openai"
+}
