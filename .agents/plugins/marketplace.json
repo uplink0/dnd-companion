@@ -1,0 +1,20 @@
+{
+  "name": "dnd-realm",
+  "interface": {
+    "displayName": "D&D Realm"
+  },
+  "plugins": [
+    {
+      "name": "dnd-realm",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dnd-realm"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Games"
+    }
+  ]
+}
