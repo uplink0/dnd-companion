@@ -3,12 +3,15 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import { pool } from './db.js';
 import { config } from './config.js';
+import { verifyOAuthAccessToken } from './mcp-oauth.js';
 
 function assertAuth(req) {
-  const expected = String(config.mcpToken || '').trim();
-  if (!expected) throw Object.assign(new Error('DND_MCP_TOKEN is not configured'), { status: 503 });
   const actual = String(req.headers.authorization || '');
-  if (actual !== `Bearer ${expected}`) throw Object.assign(new Error('Unauthorized'), { status: 401 });
+  const expected = String(config.mcpToken || '').trim();
+  if (expected && actual === `Bearer ${expected}`) return;
+  if (config.mcpOAuthEnabled && /^Bearer\s+\S+$/i.test(actual) && verifyOAuthAccessToken(actual.slice(7).trim())) return;
+  const error = Object.assign(new Error('Unauthorized'), { status: 401 });
+  throw error;
 }
 
 function textResult(value) {
@@ -63,7 +66,7 @@ function createServer() {
 
 export function mountMcp(app) {
   if (!config.mcpEnabled) return;
-  app.get('/mcp/health', (req, res) => res.json({ ok: true, service: 'dnd-realm-mcp', version: '1.0.0' }));
+  app.get('/mcp/health', (req, res) => res.json({ ok: true, service: 'dnd-realm-mcp', version: '1.1.0', oauth: config.mcpOAuthEnabled }));
   app.all('/mcp', async (req, res) => {
     try {
       assertAuth(req);
@@ -74,7 +77,10 @@ export function mountMcp(app) {
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
       const status = error.status || 500;
-      if (status === 401) res.set('WWW-Authenticate', 'Bearer');
+      if (status === 401) {
+        const resource = `${req.protocol}://${req.get('host')}/.well-known/oauth-protected-resource`;
+        res.set('WWW-Authenticate', `Bearer resource_metadata="${resource}", scope="mcp:read"`);
+      }
       if (!res.headersSent) res.status(status).json({ error: error.message });
     }
   });
