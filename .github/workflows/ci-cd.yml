@@ -34,6 +34,7 @@ jobs:
           node --check server/ai-api.js
           node --check server/ai-master.js
           node --check server/codex-app-server.js
+          node --check server/mcp.js
           node --check server/character-api.js
           node --check server/character-rules.js
           node --check server/game-engine.js
@@ -53,6 +54,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.2
         env:
           AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          DND_MCP_TOKEN: ${{ secrets.DND_MCP_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
@@ -63,7 +65,7 @@ jobs:
           host: 194.147.215.29
           username: ivan
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: AI_PROVIDER,OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL,OPENROUTER_API_KEY,OPENROUTER_BASE_URL,OPENROUTER_MODEL
+          envs: AI_PROVIDER,DND_MCP_TOKEN,OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL,OPENROUTER_API_KEY,OPENROUTER_BASE_URL,OPENROUTER_MODEL
           script: |
             set -e
             cd /home/ivan/dnd-companion
@@ -84,6 +86,8 @@ jobs:
             }
 
             write_env AI_PROVIDER "${AI_PROVIDER:-codex}"
+            write_env DND_MCP_ENABLED "true"
+            write_env DND_MCP_TOKEN "${DND_MCP_TOKEN:-}"
             write_env OPENAI_API_KEY "${OPENAI_API_KEY:-}"
             write_env OPENAI_BASE_URL "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
             write_env OPENAI_MODEL "${OPENAI_MODEL:-gpt-5.6-luna}"
@@ -98,12 +102,35 @@ jobs:
             for i in $(seq 1 30); do
               if curl -fsS http://127.0.0.1:3000/api/health; then
                 echo "Application is healthy"
-                exit 0
+                break
               fi
               echo "Waiting for application... attempt $i/30"
               sleep 2
+              if [ "$i" = "30" ]; then
+                echo "Application healthcheck failed"
+                docker compose logs --tail=120
+                exit 1
+              fi
             done
 
-            echo "Application healthcheck failed"
-            docker compose logs --tail=120
-            exit 1
+            test -n "${DND_MCP_TOKEN:-}"
+            curl -fsS http://127.0.0.1:3000/mcp/health | grep -q 'dnd-realm-mcp'
+
+            INIT=$(curl -fsS \
+              -X POST \
+              -H "Authorization: Bearer ${DND_MCP_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci-smoke","version":"1.0.0"}}}' \
+              http://127.0.0.1:3000/mcp)
+            echo "$INIT" | jq -e '.result.protocolVersion' >/dev/null
+
+            TOOLS=$(curl -fsS \
+              -X POST \
+              -H "Authorization: Bearer ${DND_MCP_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              --data '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+              http://127.0.0.1:3000/mcp)
+            echo "$TOOLS" | jq -e '.result.tools | map(.name) | index("get_game_state")' >/dev/null
+            echo "MCP smoke test passed"
