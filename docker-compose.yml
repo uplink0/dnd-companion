@@ -20,6 +20,8 @@ services:
       DATABASE_URL: postgres://dnd:dnd@db:5432/dnd_realm
       AUTO_MIGRATE: "true"
       SEED_DEMO: "true"
+      DND_MCP_ENABLED: ${DND_MCP_ENABLED:-false}
+      DND_MCP_TOKEN: ${DND_MCP_TOKEN:-}
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
