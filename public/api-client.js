@@ -2,7 +2,7 @@ const ACTIVE_KEY='dnd.activeCharacterId';
 const state={campaignId:'10000000-0000-4000-8000-000000000001',characterId:localStorage.getItem(ACTIVE_KEY)||null,data:null,loadToken:0};
 const esc=(value)=>String(value??'').replace(/[&<>\"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[char]));
 const fmt=(value)=>new Intl.NumberFormat('ru-RU').format(Number(value||0));
-const uuid=()=>crypto.randomUUID();
+const uuid=()=>{if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();if(typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function'){const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;return Array.from(bytes,(byte,index)=>{const hex=byte.toString(16).padStart(2,'0');return [4,6,8,10].includes(index)?`-${hex}`:hex;}).join('');}return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(char)=>{const random=Math.floor(Math.random()*16);const value=char==='x'?random:(random&3)|8;return value.toString(16);});};
 async function request(path,options={}){const response=await fetch(path.startsWith('/api/')?path:`/api${path}`,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});let data=null;try{data=await response.json();}catch{throw new Error('Сервер вернул некорректный ответ');}if(!response.ok)throw new Error(data.error||'Ошибка сервера');return data};
 function activeId(){state.characterId=localStorage.getItem(ACTIVE_KEY)||null;return state.characterId;}
 function isChatPage(){return location.hash===''||location.hash==='#chat';}
