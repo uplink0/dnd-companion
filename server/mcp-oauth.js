@@ -42,10 +42,10 @@ export function mcpOAuthMetadata(req) {
   };
 }
 
-export function protectedResourceMetadata(req) {
+export function protectedResourceMetadata(req, resourcePath = '/mcp') {
   const issuer = baseUrl(req);
   return {
-    resource: `${issuer}/mcp`,
+    resource: `${issuer}${resourcePath}`,
     authorization_servers: [issuer],
     bearer_methods_supported: ['header'],
     scopes_supported: ['mcp:read']
@@ -54,7 +54,8 @@ export function protectedResourceMetadata(req) {
 
 export function registerOAuthRoutes(app) {
   app.get('/.well-known/oauth-authorization-server', (req, res) => res.json(mcpOAuthMetadata(req)));
-  app.get('/.well-known/oauth-protected-resource', (req, res) => res.json(protectedResourceMetadata(req)));
+  app.get('/.well-known/oauth-protected-resource', (req, res) => res.json(protectedResourceMetadata(req, '/mcp')));
+  app.get('/.well-known/oauth-protected-resource/mcp/openai', (req, res) => res.json(protectedResourceMetadata(req, '/mcp/openai')));
 
   app.post('/oauth/register', (req, res) => {
     const body = req.body || {};
