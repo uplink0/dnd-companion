@@ -72,7 +72,7 @@ function consume() {
 
 function startProcess() {
   if (child && !child.killed) return;
-  child = spawn(CODEX_BIN, ['app-server', '--listen', 'stdio'], {
+  child = spawn(CODEX_BIN, ['app-server', '--listen', 'stdio://'], {
     env: { ...process.env, CODEX_HOME },
     stdio: ['pipe', 'pipe', 'pipe']
   });
