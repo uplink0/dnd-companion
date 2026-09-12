@@ -21,6 +21,16 @@ export async function migrate() {
       version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now()
     )`);
     await client.query("INSERT INTO schema_migrations(version) VALUES('001_initial') ON CONFLICT DO NOTHING");
+    await client.query(`CREATE TABLE IF NOT EXISTS action_receipts (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      campaign_id uuid NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+      character_id uuid NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      client_action_id uuid NOT NULL,
+      action_type text NOT NULL,
+      response jsonb NOT NULL DEFAULT '{}',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE(campaign_id, character_id, client_action_id)
+    )`);
     if (config.seedDemo) await client.query(await readFile(resolve(root, 'db/seed.sql'), 'utf8'));
 
     // The repository used to ship with demo heroes. They must not become
