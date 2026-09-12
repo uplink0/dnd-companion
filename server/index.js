@@ -9,13 +9,16 @@ import { aiApi } from './ai-api.js';
 import { mountMcp } from './mcp.js';
 import { config } from './config.js';
 import { migrate } from './migrate.js';
+import { registerOAuthRoutes } from './mcp-oauth.js';
 import { codexPrompt, codexStatus, startChatGptDeviceLogin, waitForLogin } from './codex-app-server.js';
 
 const app=express();
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 app.use(helmet({contentSecurityPolicy:false,crossOriginOpenerPolicy:false,originAgentCluster:false}));
 app.use(express.json({limit:'256kb'}));
+app.use(express.urlencoded({ extended:false, limit:'32kb' }));
 
+if (config.mcpOAuthEnabled) registerOAuthRoutes(app);
 mountMcp(app);
 
 if (config.aiProvider === 'codex') {
