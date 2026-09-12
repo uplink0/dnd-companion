@@ -5,7 +5,13 @@ const clients = new Map();
 const usedCodes = new Set();
 
 function b64(value) { return Buffer.from(value).toString('base64url'); }
+function equalText(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
 function sign(value) {
+  if (!config.mcpOAuthSecret) throw new Error('DND_MCP_OAUTH_SECRET is not configured');
   return crypto.createHmac('sha256', config.mcpOAuthSecret).update(value).digest('base64url');
 }
 function encode(payload) {
@@ -14,7 +20,7 @@ function encode(payload) {
 }
 function decode(token) {
   const [body, signature] = String(token || '').split('.');
-  if (!body || !signature || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(sign(body)))) throw new Error('Invalid token');
+  if (!body || !signature || !equalText(signature, sign(body))) throw new Error('Invalid token');
   return JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
 }
 function random() { return crypto.randomBytes(32).toString('base64url'); }
@@ -52,7 +58,7 @@ export function registerOAuthRoutes(app) {
 
   app.post('/oauth/register', (req, res) => {
     const body = req.body || {};
-    if (!Array.isArray(body.redirect_uris) || !body.redirect_uris.length || body.redirect_uris.some((uri) => typeof uri !== 'string' || !/^https?:\/\//.test(uri))) return res.status(400).json({ error: 'invalid_client_metadata' });
+    if (!Array.isArray(body.redirect_uris) || !body.redirect_uris.length || body.redirect_uris.some((uri) => typeof uri !== 'string' || !/^https:\/\//.test(uri))) return res.status(400).json({ error: 'invalid_client_metadata' });
     const clientId = random();
     clients.set(clientId, { client_id: clientId, redirect_uris: body.redirect_uris, client_name: String(body.client_name || 'MCP client').slice(0, 120) });
     res.status(201).json({ client_id: clientId, client_name: clients.get(clientId).client_name, redirect_uris: body.redirect_uris, token_endpoint_auth_method: 'none' });
@@ -62,7 +68,6 @@ export function registerOAuthRoutes(app) {
     const { client_id: clientId, redirect_uri: redirectUri, response_type: responseType, code_challenge: challenge, code_challenge_method: method, state } = req.query;
     const client = clients.get(String(clientId || ''));
     if (responseType !== 'code' || !client || !validRedirect(client, redirectUri) || !challenge || method !== 'S256') return res.status(400).send('Invalid OAuth authorization request');
-    const escaped = String(value => value);
     const safe = (value) => String(value || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
     res.type('html').send(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>D&D Realm MCP</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font-family:system-ui;max-width:520px;margin:60px auto;padding:24px"><h1>D&D Realm</h1><p>Разрешить ChatGPT доступ к данным кампании через MCP?</p><form method="post" action="/oauth/authorize"><input type="hidden" name="client_id" value="${safe(clientId)}"><input type="hidden" name="redirect_uri" value="${safe(redirectUri)}"><input type="hidden" name="state" value="${safe(state)}"><input type="hidden" name="code_challenge" value="${safe(challenge)}"><label>Код доступа<br><input name="setup_code" type="password" required autocomplete="off" style="width:100%;padding:10px;margin:8px 0"></label><button name="approve" value="yes" type="submit">Разрешить доступ</button></form></body></html>`);
   });
@@ -70,7 +75,7 @@ export function registerOAuthRoutes(app) {
   app.post('/oauth/authorize', (req, res) => {
     const { client_id: clientId, redirect_uri: redirectUri, state, code_challenge: challenge, setup_code: setupCode, approve } = req.body || {};
     const client = clients.get(String(clientId || ''));
-    if (!client || !validRedirect(client, redirectUri) || approve !== 'yes' || !crypto.timingSafeEqual(Buffer.from(String(setupCode || '')), Buffer.from(String(config.mcpOAuthSetupCode || '')))) return res.status(403).send('Authorization denied');
+    if (!client || !validRedirect(client, redirectUri) || approve !== 'yes' || !equalText(setupCode, config.mcpOAuthSetupCode)) return res.status(403).send('Authorization denied');
     const code = encode({ typ: 'code', jti: random(), client_id: clientId, redirect_uri: redirectUri, challenge, scope: 'mcp:read', exp: Date.now() + 300000 });
     const url = new URL(redirectUri);
     url.searchParams.set('code', code);
@@ -96,7 +101,6 @@ export function registerOAuthRoutes(app) {
 export function verifyOAuthAccessToken(token) {
   try {
     const payload = decode(token);
-    if (payload.typ !== 'access' || payload.exp < Date.now() || payload.scope !== 'mcp:read') return false;
-    return true;
+    return payload.typ === 'access' && payload.exp >= Date.now() && payload.scope === 'mcp:read';
   } catch { return false; }
 }
