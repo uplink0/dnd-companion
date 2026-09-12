@@ -41,9 +41,12 @@ export async function migrate() {
       status text NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE','TAKEN','DISCARDED')),
       source_message_id uuid REFERENCES messages(id) ON DELETE SET NULL,
       created_at timestamptz NOT NULL DEFAULT now(),
-      taken_at timestamptz
+      taken_at timestamptz,
+      item_id uuid REFERENCES items(id) ON DELETE SET NULL
     )`);
+    await client.query('ALTER TABLE scene_items ADD COLUMN IF NOT EXISTS item_id uuid REFERENCES items(id) ON DELETE SET NULL');
     await client.query('CREATE INDEX IF NOT EXISTS scene_items_character_status ON scene_items(character_id,status,created_at)');
+    await client.query('CREATE INDEX IF NOT EXISTS scene_items_item_id ON scene_items(item_id)');
     if (config.seedDemo) await client.query(await readFile(resolve(root, 'db/seed.sql'), 'utf8'));
 
     // The repository used to ship with demo heroes. They must not become
