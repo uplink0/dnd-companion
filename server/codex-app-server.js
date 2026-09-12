@@ -20,7 +20,7 @@ async function ensureConfig() {
   await mkdir(CODEX_HOME, { recursive: true });
   if (!process.env.DND_MCP_TOKEN) throw new Error('DND_MCP_TOKEN is not configured');
 
-  const config = `cli_auth_credentials_store = "file"\ncheck_for_update_on_startup = false\n\n[mcp_servers.dnd_realm]\nurl = "${MCP_URL.replace(/"/g, '\\"')}"\nenv_http_headers = { "Authorization" = "DND_MCP_TOKEN" }\nenabled = true\nrequired = true\nstartup_timeout_sec = 15\ntool_timeout_sec = 30\nenabled_tools = ["get_character", "get_game_state", "get_recent_history"]\ndefault_tools_approval_mode = "approve"\n`;
+  const config = `cli_auth_credentials_store = "file"\ncheck_for_update_on_startup = false\n\n[mcp_servers.dnd_realm]\nurl = "${MCP_URL.replace(/"/g, '\\"')}"\nbearer_token_env_var = "DND_MCP_TOKEN"\nenabled = true\nrequired = true\nstartup_timeout_sec = 15\ntool_timeout_sec = 30\nenabled_tools = ["get_character", "get_game_state", "get_recent_history"]\ndefault_tools_approval_mode = "approve"\n`;
   try {
     const current = await readFile(CONFIG_PATH, 'utf8');
     if (current !== config) await writeFile(CONFIG_PATH, config, { mode: 0o600 });
