@@ -20,6 +20,9 @@ app.use(express.urlencoded({ extended:false, limit:'32kb' }));
 
 if (config.mcpOAuthEnabled) registerOAuthRoutes(app);
 mountMcp(app);
+// Dedicated OpenAI-facing endpoint. It exposes the same strictly read-only MCP tool set
+// under a stable URL so ChatGPT app registration does not depend on the site's legacy AI route.
+mountMcp(app, { path: '/mcp/openai', healthPath: '/mcp/openai/health' });
 
 if (config.aiProvider === 'codex') {
   app.get('/api/codex/status', async (req,res,next) => {
