@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
 
 const CODEX_HOME = process.env.CODEX_HOME || '/data/codex';
 const CONFIG_PATH = join(CODEX_HOME, 'config.toml');
@@ -15,11 +14,11 @@ let initialized = false;
 let nextId = 1;
 const pending = new Map();
 const loginWaiters = new Map();
+const listeners = new Set();
 
 async function ensureConfig() {
   await mkdir(CODEX_HOME, { recursive: true });
-  const token = process.env.DND_MCP_TOKEN || '';
-  if (!token) throw new Error('DND_MCP_TOKEN is not configured');
+  if (!process.env.DND_MCP_TOKEN) throw new Error('DND_MCP_TOKEN is not configured');
 
   const config = `cli_auth_credentials_store = "file"\ncheck_for_update_on_startup = false\n\n[mcp_servers.dnd_realm]\nurl = "${MCP_URL.replace(/"/g, '\\"')}"\nbearer_token_env_var = "DND_MCP_TOKEN"\nenabled = true\nrequired = true\nstartup_timeout_sec = 15\ntool_timeout_sec = 30\nenabled_tools = ["get_character", "get_game_state", "get_recent_history"]\ndefault_tools_approval_mode = "approve"\n`;
   try {
@@ -31,10 +30,11 @@ async function ensureConfig() {
 }
 
 function rejectAll(error) {
-  for (const { reject } of pending.values()) reject(error);
+  for (const waiter of pending.values()) waiter.reject(error);
   pending.clear();
-  for (const { reject } of loginWaiters.values()) reject(error);
+  for (const waiter of loginWaiters.values()) waiter.reject(error);
   loginWaiters.clear();
+  listeners.clear();
 }
 
 function handleMessage(message) {
@@ -56,6 +56,8 @@ function handleMessage(message) {
       else waiter.reject(new Error(message.params?.error || 'ChatGPT login failed'));
     }
   }
+
+  for (const listener of listeners) listener(message);
 }
 
 function consume() {
@@ -136,8 +138,12 @@ export async function codexPrompt({ system, user, campaignId, characterId }) {
   await ensureConfig();
   await initialize();
 
+  const account = await request('account/read', { refreshToken: true });
+  if (account?.account?.type !== 'chatgpt') {
+    throw Object.assign(new Error('Codex is not authenticated with a ChatGPT account'), { status: 503, code: 'CODEX_AUTH_REQUIRED' });
+  }
+
   const thread = await request('thread/start', {
-    model: process.env.CODEX_MODEL || undefined,
     cwd: '/app',
     approvalPolicy: 'never',
     sandboxPolicy: { type: 'readOnly', networkAccess: true },
@@ -158,22 +164,26 @@ export async function codexPrompt({ system, user, campaignId, characterId }) {
 
   return await new Promise((resolve, reject) => {
     let text = '';
-    const timeout = setTimeout(() => reject(new Error('Codex turn timed out')), REQUEST_TIMEOUT_MS);
-    const originalHandler = handleMessage;
-    const listener = (message) => {
+    const timeout = setTimeout(() => {
+      listeners.delete(onMessage);
+      reject(new Error('Codex turn timed out'));
+    }, REQUEST_TIMEOUT_MS);
+    const onMessage = (message) => {
       if (message.method === 'item/agentMessage/delta' && message.params?.turnId === turnId) text += message.params?.delta || '';
       if (message.method === 'item/completed' && message.params?.turnId === turnId && message.params?.item?.type === 'agentMessage') text = message.params.item.text || text;
       if (message.method === 'turn/completed' && message.params?.turnId === turnId) {
         clearTimeout(timeout);
-        processMessage = null;
+        listeners.delete(onMessage);
         if (message.params?.turn?.status === 'failed') reject(new Error(message.params?.turn?.error?.message || 'Codex turn failed'));
         else resolve(text);
       }
     };
-    let processMessage = null;
-    const previous = handleMessage;
-    handleMessage = (message) => { previous(message); listener(message); };
+    listeners.add(onMessage);
   });
+}
+
+export function codexAuthRequiredError() {
+  return Object.assign(new Error('ChatGPT authentication is required. Open /api/codex/login/start to start device login.'), { status: 503, code: 'CODEX_AUTH_REQUIRED' });
 }
 
 export async function shutdownCodex() {
