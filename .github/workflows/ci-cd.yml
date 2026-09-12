@@ -35,6 +35,7 @@ jobs:
           node --check server/ai-master.js
           node --check server/codex-app-server.js
           node --check server/mcp.js
+          node --check server/mcp-oauth.js
           node --check server/character-api.js
           node --check server/character-rules.js
           node --check server/game-engine.js
@@ -88,6 +89,7 @@ jobs:
             write_env AI_PROVIDER "${AI_PROVIDER:-codex}"
             write_env DND_MCP_ENABLED "true"
             write_env DND_MCP_TOKEN "${DND_MCP_TOKEN:-}"
+            write_env DND_MCP_OAUTH_ENABLED "true"
             write_env OPENAI_API_KEY "${OPENAI_API_KEY:-}"
             write_env OPENAI_BASE_URL "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
             write_env OPENAI_MODEL "${OPENAI_MODEL:-gpt-5.6-luna}"
@@ -115,6 +117,8 @@ jobs:
 
             test -n "${DND_MCP_TOKEN:-}"
             curl -fsS http://127.0.0.1:3000/mcp/health | grep -q 'dnd-realm-mcp'
+            curl -fsS http://127.0.0.1:3000/.well-known/oauth-protected-resource | jq -e '.authorization_servers | length == 1' >/dev/null
+            curl -fsS http://127.0.0.1:3000/.well-known/oauth-authorization-server | jq -e '.code_challenge_methods_supported | index("S256")' >/dev/null
 
             INIT=$(curl -fsS \
               -X POST \
