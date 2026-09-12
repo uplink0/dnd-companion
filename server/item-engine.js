@@ -47,11 +47,13 @@ export function buildItemSpec(input, characterLevel = 1) {
   const material = String(input?.material || '').trim().slice(0, 60);
   const weight = Math.max(0, Math.min(50, Number(input?.weight || 0)));
   const value = Math.max(0, Math.min(10000, Number(input?.base_value_gp || input?.value || 0)));
+  const name = String(input?.name || 'Найденный предмет').trim().slice(0, 120);
+  const description = String(input?.description || input?.item_description || '').trim().slice(0, 1000);
   const spec = {
-    name: String(input?.name || 'Найденный предмет').trim().slice(0, 120),
+    name,
     item_type: type,
     rarity,
-    description: String(input?.description || '').trim().slice(0, 1000),
+    description,
     weight,
     base_value_gp: value,
     consumable: type === 'CONSUMABLE',
