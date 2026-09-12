@@ -1,7 +1,6 @@
 (() => {
   const BASE_POINTS = 72;
   const STAT_KEYS = ['str','dex','con','int','wis','cha'];
-  let queued = false;
 
   const creatorExists = () => Boolean(document.querySelector('.character-creator'));
 
@@ -48,20 +47,11 @@
     }
   }
 
-  function queueSimplify() {
-    if (queued) return;
-    queued = true;
-    queueMicrotask(() => {
-      queued = false;
-      simplifyCreatorDisplay();
-    });
-  }
-
   document.addEventListener('input', (event) => {
     if (!creatorExists()) return;
     if (event.target?.classList.contains('stat-input')) {
       enforceBudgetBeforeAppHandler(event.target);
-      queueSimplify();
+      simplifyCreatorDisplay();
     }
   }, true);
 
@@ -69,14 +59,9 @@
     if (!creatorExists()) return;
     if (event.target?.classList.contains('stat-input')) {
       enforceBudgetBeforeAppHandler(event.target);
-      queueSimplify();
+      simplifyCreatorDisplay();
     } else if (event.target?.id === 'heroRace' || event.target?.id === 'heroClass') {
-      queueSimplify();
+      simplifyCreatorDisplay();
     }
   }, true);
-
-  const app = document.querySelector('#app');
-  if (app) {
-    new MutationObserver(queueSimplify).observe(app, { childList: true, subtree: true });
-  }
 })();
