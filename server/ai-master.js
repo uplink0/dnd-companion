@@ -31,7 +31,7 @@ const RULES = `
 {"narrative":"... просьба игроку бросить кубик","pending_roll":{"check_type":"ABILITY_CHECK|SKILL|SAVING_THROW|ATTACK","ability":"str|dex|con|int|wis|cha","skill":"perception|null","dc":15,"sides":20,"reason":"..."},"action":null}
 
 Допустимые действия:
-- DISCOVER_ITEM: когда в текущей сцене впервые обнаружен конкретный предмет. Укажи name, description и item_spec, но предмет ещё НЕ попадает в инвентарь.
+- DISCOVER_ITEM: когда в текущей сцене впервые обнаружен конкретный предмет. ОБЯЗАТЕЛЬНО укажи в item_spec: name, item_type, rarity, description, material/weight/value при наличии, consumable, stackable и properties. Используй конкретные сведения, которые ты только что описал в narrative. Не используй «Найденный предмет», пустое описание или обезличенную карточку.
 - RECEIVE_ITEM: только когда игрок явно решил взять/поднять/забрать конкретный ранее обнаруженный предмет. Используй существующий scene_item_id из контекста.
 - RETURN_ITEM: только когда игрок явно решил положить/оставить/уронить/вернуть конкретный ранее взятый предмет. Если игрок возвращает предмет туда, откуда он был взят, используй destination.type="ORIGINAL_LOCATION". Если игрок кладёт предмет в другое место текущей сцены (на пол, на стол, под кровать, у стены и т.п.), используй destination.type="SCENE_LOCATION" и кратко опиши точное место в destination.description. Используй существующий scene_item_id из контекста. Не возвращай предмет только потому, что игрок его осматривает или упоминает.
 - USE_ITEM, DISCOVER_LOCATION, DISCOVER_CREATURE — только с существующими ID из контекста.
@@ -74,7 +74,7 @@ async function contextFor(characterId, campaignId) {
     pool.query(`SELECT l.id,l.name,l.description,k.level AS knowledge_level FROM locations l JOIN knowledge_entries k ON k.subject_id=l.id WHERE l.campaign_id=$1::uuid AND k.campaign_id=$1::uuid AND k.character_id=$2::uuid AND k.subject_type='LOCATION' AND k.level<>'UNKNOWN' ORDER BY l.name`,[campaignId,characterId]),
     pool.query(`SELECT cr.id,cr.name,cr.creature_type,k.level,k.facts FROM knowledge_entries k JOIN creatures cr ON cr.id=k.subject_id WHERE k.campaign_id=$1::uuid AND k.character_id=$2::uuid AND k.subject_type='CREATURE' AND k.level<>'UNKNOWN' ORDER BY cr.name`,[campaignId,characterId]),
     pool.query(`SELECT id,title,description,status FROM quests WHERE campaign_id=$1::uuid ORDER BY status,title LIMIT 20`,[campaignId]),
-    pool.query(`SELECT ie.id,ie.quantity,ie.equipped,COALESCE(ie.custom_name,i.name) name,i.item_type,i.rarity,i.weight,i.properties FROM inventory_entries ie JOIN items i ON i.id=ie.item_id WHERE ie.character_id=$1::uuid ORDER BY i.name`,[characterId]),
+    pool.query(`SELECT ie.id,ie.quantity,ie.equipped,COALESCE(ie.custom_name,i.name) name,i.item_type,i.rarity,i.weight,i.properties,i.description FROM inventory_entries ie JOIN items i ON i.id=ie.item_id WHERE ie.character_id=$1::uuid ORDER BY i.name`,[characterId]),
     pool.query(`SELECT id,name,description,item_spec,item_id,status,created_at FROM scene_items WHERE campaign_id=$1::uuid AND character_id=$2::uuid AND status IN ('AVAILABLE','TAKEN') ORDER BY created_at DESC LIMIT 20`,[campaignId,characterId])
   ]);
   return {character,recentMessages:messages.rows.reverse(),recentEvents:events.rows.reverse(),knownLocations:locations.rows,knownCreatures:bestiary.rows,quests:quests.rows,inventory:inventory.rows,availableSceneItems:sceneItems.rows};
@@ -89,11 +89,30 @@ async function askModel(messages) {
   return cleanJson(data.choices?.[0]?.message?.content);
 }
 
+async function enrichDiscoveredItem({ result, context }) {
+  if (!result?.action || result.action.type !== 'DISCOVER_ITEM') return result;
+  const current = result.action.item_spec || result.action;
+  const name = String(current?.name || '').trim();
+  const description = String(current?.description || current?.item_description || '').trim();
+  const incomplete = !name || name === 'Найденный предмет' || !description;
+  if (!incomplete) return result;
+
+  const sourceNarrative = String(result.narrative || '').trim();
+  const enriched = await askModel([
+    { role:'system', content:`Ты отвечаешь за структурирование предметов в D&D Realm. Состояние игры — источник истины. Извлеки ТОЛЬКО конкретные сведения о найденном предмете из переданного narrative и контекста. Ничего не выдумывай. Верни только JSON без markdown: {"name":"...","item_type":"MISC|CONSUMABLE|WEAPON|ARMOR|SHIELD|TOOL|ADVENTURING_GEAR|FOOD|QUEST_ITEM|MAGIC_ITEM","rarity":"COMMON|UNCOMMON|RARE|VERY_RARE|LEGENDARY","description":"...","material":"","weight":0,"base_value_gp":0,"consumable":false,"stackable":false,"properties":[]}. Если магические свойства не подтверждены, не добавляй их.` },
+    { role:'system', content:`Контекст состояния:\n${JSON.stringify(context)}` },
+    { role:'user', content:`Narrative Мастера:\n${sourceNarrative}\n\nЧерновая карточка предмета:\n${JSON.stringify(current)}` }
+  ]);
+  const itemSpec = { ...current, ...enriched };
+  return { ...result, action: { ...result.action, item_spec: itemSpec } };
+}
+
 async function discoverItem({campaignId,characterId,sourceMessageId,item}) {
   return transaction(async (client) => {
     const character=(await client.query('SELECT level FROM characters WHERE id=$1::uuid AND campaign_id=$2::uuid FOR SHARE',[characterId,campaignId])).rows[0];
     if(!character) throw Object.assign(new Error('Персонаж не найден в кампании'),{status:404});
     const spec=buildItemSpec(item,character.level);
+    if (spec.name === 'Найденный предмет' || !spec.description) throw Object.assign(new Error('AI-Мастер не сформировал полную карточку найденного предмета'),{status:422});
     const {rows}=await client.query(`INSERT INTO scene_items(campaign_id,character_id,name,description,item_spec,source_message_id) VALUES($1::uuid,$2::uuid,$3,$4,$5::jsonb,$6::uuid) RETURNING *`,[campaignId,characterId,spec.name,spec.description,JSON.stringify(spec),sourceMessageId||null]);
     const result=rows[0];
     const event=(await client.query(`INSERT INTO game_events(campaign_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload) VALUES($1::uuid,$2::uuid,'ITEM_DISCOVERED','SCENE_ITEM',$3::uuid,$4) RETURNING *`,[campaignId,characterId,result.id,{sceneItemId:result.id,name:result.name}])).rows[0];
@@ -108,6 +127,7 @@ async function receiveSceneItem({campaignId,characterId,sceneItemId}) {
     const character=(await client.query('SELECT * FROM characters WHERE id=$1::uuid AND campaign_id=$2::uuid FOR SHARE',[characterId,campaignId])).rows[0];
     if(!character) throw Object.assign(new Error('Персонаж не найден в кампании'),{status:404});
     const spec=buildItemSpec(scene.item_spec,character.level);
+    if (spec.name === 'Найденный предмет' || !spec.description) throw Object.assign(new Error('У предмета отсутствует сохранённая карточка. Получение отменено, чтобы не потерять описание.'),{status:409});
     const item=(await client.query(`INSERT INTO items(campaign_id,name,item_type,rarity,description,weight,base_value_gp,consumable,stackable,properties) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb) RETURNING *`,[campaignId,spec.name,spec.item_type,spec.rarity,spec.description,spec.weight,spec.base_value_gp,spec.consumable,spec.stackable,JSON.stringify(spec.properties)])).rows[0];
     const entry=(await client.query(`INSERT INTO inventory_entries(character_id,item_id,quantity) VALUES($1::uuid,$2::uuid,1) ON CONFLICT(character_id,item_id) DO UPDATE SET quantity=inventory_entries.quantity+1 RETURNING *`,[characterId,item.id])).rows[0];
     const resultEvent=(await client.query(`INSERT INTO game_events(campaign_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload) VALUES($1::uuid,$2::uuid,'ITEM_RECEIVED','INVENTORY_ENTRY',$3::uuid,$4) RETURNING *`,[campaignId,characterId,entry.id,{itemId:item.id,itemName:item.name,quantity:1,totalQuantity:entry.quantity,sceneItemId:scene.id}])).rows[0];
@@ -141,7 +161,8 @@ export async function handlePlayerMessage({campaignId,characterId,body}) {
   const player=(await pool.query(`INSERT INTO messages(campaign_id,character_id,role,body,metadata) VALUES($1::uuid,$2::uuid,'PLAYER',$3,$4) RETURNING *`,[campaignId,characterId,body,{status:'sending'}])).rows[0];
   context.recentMessages.push({role:'PLAYER',body});
   try {
-    const result=await askModel([{role:'system',content:RULES},{role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ:\n${JSON.stringify(context)}`},{role:'user',content:body}]);
+    const rawResult=await askModel([{role:'system',content:RULES},{role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ:\n${JSON.stringify(context)}`},{role:'user',content:body}]);
+    const result=await enrichDiscoveredItem({result:rawResult,context});
     const pendingRoll=normalizeRoll(context.character,result.pending_roll);
     const action=result.action ? await executeAction({campaignId,characterId,action:result.action,sourceMessageId:player.id}) : null;
     const narrative=String(result.narrative||'').trim();
@@ -165,11 +186,12 @@ export async function handleRoll({campaignId,characterId,masterMessageId}) {
   const success=total>=pending.dc;
   context.recentMessages.push({role:'MASTER',body:`Результат проверки: ${total} против КС ${pending.dc} — ${success?'успех':'неудача'}.`});
   context.recentEvents.push({event_type:'DICE_ROLL',payload:{dc:pending.dc,success,roll:{...roll}}});
-  const result=await askModel([
+  const rawResult=await askModel([
     {role:'system',content:RULES},
     {role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ ПОСЛЕ ПОДТВЕРЖДЁННОГО БРОСКА:\n${JSON.stringify(context)}`},
     {role:'user',content:`Проверка завершена. Выпало ${roll.diceTotal} на d${pending.sides}, модификатор ${pending.modifier >= 0 ? '+' : ''}${pending.modifier}. Итог ${total}. КС ${pending.dc}. Результат: ${success?'успех':'неудача'}. Продолжи сцену естественным повествованием с учётом результата. Не повторяй технический результат броска и не упоминай JSON.`}
   ]);
+  const result=await enrichDiscoveredItem({result:rawResult,context});
   const pendingRoll=normalizeRoll(context.character,result.pending_roll);
   const action=result.action ? await executeAction({campaignId,characterId,action:result.action,sourceMessageId:masterMessageId}) : null;
   const narrative=String(result.narrative||'').trim() || `Проверка завершена: ${success?'успех':'неудача'}.`;
