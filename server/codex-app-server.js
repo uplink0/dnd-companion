@@ -116,7 +116,9 @@ async function initialize() {
 export async function codexStatus() {
   await ensureConfig();
   await initialize();
-  return request('account/read', { refreshToken: true });
+  const account = await request('account/read', { refreshToken: true });
+  if (account?.account?.type === 'chatgpt') return { ...account, requiresOpenaiAuth: false };
+  return account;
 }
 
 export async function startChatGptDeviceLogin() {
