@@ -6,6 +6,7 @@ import { api } from './api.js';
 import { characterApi } from './character-api.js';
 import { playerApi } from './player-api.js';
 import { aiApi } from './ai-api.js';
+import { mcpApi } from './mcp-api.js';
 import { config } from './config.js';
 import { migrate } from './migrate.js';
 import { codexPrompt, codexStatus, startChatGptDeviceLogin, waitForLogin } from './codex-app-server.js';
@@ -14,6 +15,8 @@ const app=express();
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 app.use(helmet({contentSecurityPolicy:false,crossOriginOpenerPolicy:false,originAgentCluster:false}));
 app.use(express.json({limit:'256kb'}));
+
+app.use('/mcp', mcpApi);
 
 if (config.aiProvider === 'codex') {
   app.get('/api/codex/status', async (req,res,next) => {
