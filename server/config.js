@@ -19,7 +19,7 @@ export const config = {
   databaseStatementTimeoutMs: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS || 10000),
   autoMigrate: process.env.AUTO_MIGRATE !== 'false',
   seedDemo: process.env.SEED_DEMO !== 'false',
-  defaultCampaignId: process.env.DEFAULT_CAMPAIGN_ID || '10000000-0000-4000-000000000001',
+  defaultCampaignId: process.env.DEFAULT_CAMPAIGN_ID || '10000000-0000-4000-8000-000000000001',
   defaultCharacterId: process.env.DEFAULT_CHARACTER_ID || '30000000-0000-4000-8000-000000000001',
   mcpEnabled: process.env.DND_MCP_ENABLED !== 'false',
   mcpToken: process.env.DND_MCP_TOKEN || '',
