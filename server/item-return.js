@@ -1,6 +1,6 @@
 import { transaction } from './db.js';
 
-export async function returnSceneItem({ campaignId, sessionId, actorId, characterId, sceneItemId }) {
+export async function returnSceneItem({ campaignId, sessionId, actorId, characterId, sceneItemId, destination = null }) {
   return transaction(async (client) => {
     const character = (await client.query(
       'SELECT * FROM characters WHERE id=$1::uuid AND campaign_id=$2::uuid FOR SHARE',
@@ -41,8 +41,7 @@ export async function returnSceneItem({ campaignId, sessionId, actorId, characte
       SELECT ie.*, i.name, i.description
       FROM inventory_entries ie
       JOIN items i ON i.id=ie.item_id
-      WHERE ie.id IS NOT NULL
-        AND ie.character_id=$1::uuid
+      WHERE ie.character_id=$1::uuid
         AND ie.item_id=$2::uuid
         AND ie.quantity > 0
       FOR UPDATE`, [characterId, itemId])).rows[0];
@@ -55,10 +54,22 @@ export async function returnSceneItem({ campaignId, sessionId, actorId, characte
       await client.query('DELETE FROM inventory_entries WHERE id=$1::uuid', [entry.id]);
     }
 
+    const requestedDestination = String(destination?.description || '').trim().slice(0, 300);
+    const destinationType = String(destination?.type || 'ORIGINAL_LOCATION').toUpperCase();
+    const finalDestination = requestedDestination || (destinationType === 'ORIGINAL_LOCATION' ? 'место, откуда предмет был взят' : 'текущее место в сцене');
+    const nextDescription = destinationType === 'ORIGINAL_LOCATION'
+      ? scene.description
+      : `${entry.description || scene.description || entry.name}. Сейчас находится: ${finalDestination}.`;
+    const nextSpec = {
+      ...(scene.item_spec && typeof scene.item_spec === 'object' ? scene.item_spec : {}),
+      location: finalDestination,
+      location_type: destinationType
+    };
+
     await client.query(`
       UPDATE scene_items
-      SET status='AVAILABLE', taken_at=NULL, item_id=$1::uuid
-      WHERE id=$2::uuid`, [itemId, scene.id]);
+      SET status='AVAILABLE', taken_at=NULL, item_id=$1::uuid, description=$2, item_spec=$3::jsonb
+      WHERE id=$4::uuid`, [itemId, nextDescription, JSON.stringify(nextSpec), scene.id]);
 
     const resultEvent = (await client.query(`
       INSERT INTO game_events(campaign_id,session_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload)
@@ -68,7 +79,9 @@ export async function returnSceneItem({ campaignId, sessionId, actorId, characte
         itemId,
         itemName: entry.name,
         quantity: 1,
-        remainingInventoryQuantity: Math.max(0, remaining)
+        remainingInventoryQuantity: Math.max(0, remaining),
+        destinationType,
+        destination: finalDestination
       }])).rows[0];
 
     await client.query(`
@@ -78,14 +91,15 @@ export async function returnSceneItem({ campaignId, sessionId, actorId, characte
         sessionId || null,
         characterId,
         'Предмет возвращён',
-        `${character.name} вернул(а) предмет «${entry.name}» обратно в сцену.`,
+        `${character.name} оставил(а) предмет «${entry.name}» ${finalDestination}.`,
         ['инвентарь','возврат']
       ]);
 
     return {
       event: resultEvent,
-      sceneItem: { ...scene, status: 'AVAILABLE', item_id: itemId },
+      sceneItem: { ...scene, status: 'AVAILABLE', item_id: itemId, description: nextDescription, item_spec: nextSpec },
       item: { id: itemId, name: entry.name, description: entry.description },
+      destination: { type: destinationType, description: finalDestination },
       remainingInventoryQuantity: Math.max(0, remaining)
     };
   });
