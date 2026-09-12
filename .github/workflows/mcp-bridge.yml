@@ -25,12 +25,21 @@ jobs:
         run: |
           set -euo pipefail
           test -f mcp/request.json
-          jq -e '.status == "pending"' mcp/request.json >/dev/null
+
+          STATUS=$(jq -r '.status // ""' mcp/request.json)
+          if [ "$STATUS" != "pending" ]; then
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+            echo "No pending MCP request; nothing to do."
+            exit 0
+          fi
+
           jq -e '.requestId and (.requestId | type == "string")' mcp/request.json >/dev/null
           jq -e '.tool and (.tool | type == "string")' mcp/request.json >/dev/null
           jq -e '.arguments and (.arguments | type == "object")' mcp/request.json >/dev/null
+          echo "pending=true" >> "$GITHUB_OUTPUT"
 
       - name: Call D&D Realm MCP
+        if: steps.validate.outputs.pending == 'true'
         env:
           DND_MCP_TOKEN: ${{ secrets.DND_MCP_TOKEN }}
           MCP_URL: https://atlas-infra.ru/mcp
@@ -94,6 +103,7 @@ jobs:
           fi
 
       - name: Commit MCP response
+        if: steps.validate.outputs.pending == 'true'
         shell: bash
         run: |
           set -euo pipefail
