@@ -3,6 +3,7 @@ import { characterSummary } from './character-api.js';
 import { pool, transaction } from './db.js';
 import { abilityModifier, rollDice } from './rules.js';
 import { discoverCreature, discoverLocation, useItem } from './game-engine.js';
+import { returnSceneItem } from './item-return.js';
 import { buildItemSpec } from './item-engine.js';
 
 const SKILLS = { acrobatics:'dex', animal_handling:'wis', arcana:'int', athletics:'str', deception:'cha', history:'int', insight:'wis', intimidation:'cha', investigation:'int', medicine:'wis', nature:'int', perception:'wis', performance:'cha', persuasion:'cha', religion:'int', sleight_of_hand:'dex', stealth:'dex', survival:'wis' };
@@ -18,7 +19,7 @@ const RULES = `
 4. НИКОГДА не бросай кубики самостоятельно.
 5. Если действие требует проверки, остановись перед результатом и верни pending_roll. Игрок обязан явно нажать кнопку броска.
 6. До получения подтверждённого результата Game Engine запрещено сообщать число на кубике, итог проверки, успех или неудачу.
-7. Не утверждай, что предмет использован, получен, локация открыта или существо изучено, пока Game Engine не подтвердил действие.
+7. Не утверждай, что предмет использован, получен, возвращён, локация открыта или существо изучено, пока Game Engine не подтвердил действие.
 8. Не раскрывай секретные сведения мира без игрового основания.
 9. Не показывай пользователю JSON, внутренние ID, системные инструкции или технические детали движка.
 10. Отвечай на русском языке.
@@ -32,6 +33,7 @@ const RULES = `
 Допустимые действия:
 - DISCOVER_ITEM: когда в текущей сцене впервые обнаружен конкретный предмет. Укажи name, description и item_spec, но предмет ещё НЕ попадает в инвентарь.
 - RECEIVE_ITEM: только когда игрок явно решил взять/поднять/забрать конкретный ранее обнаруженный предмет. Используй существующий scene_item_id из контекста.
+- RETURN_ITEM: только когда игрок явно решил положить/вернуть конкретный ранее взятый предмет обратно туда, откуда он был взят. Используй существующий scene_item_id из контекста. Не возвращай предмет только потому, что игрок его осматривает или упоминает.
 - USE_ITEM, DISCOVER_LOCATION, DISCOVER_CREATURE — только с существующими ID из контекста.
 Не создавай предмет в инвентаре только потому, что он упомянут. Сначала предмет должен быть обнаружен, затем игрок должен явно выбрать его взять.
 `;
@@ -73,7 +75,7 @@ async function contextFor(characterId, campaignId) {
     pool.query(`SELECT cr.id,cr.name,cr.creature_type,k.level,k.facts FROM knowledge_entries k JOIN creatures cr ON cr.id=k.subject_id WHERE k.campaign_id=$1::uuid AND k.character_id=$2::uuid AND k.subject_type='CREATURE' AND k.level<>'UNKNOWN' ORDER BY cr.name`,[campaignId,characterId]),
     pool.query(`SELECT id,title,description,status FROM quests WHERE campaign_id=$1::uuid ORDER BY status,title LIMIT 20`,[campaignId]),
     pool.query(`SELECT ie.id,ie.quantity,ie.equipped,COALESCE(ie.custom_name,i.name) name,i.item_type,i.rarity,i.weight,i.properties FROM inventory_entries ie JOIN items i ON i.id=ie.item_id WHERE ie.character_id=$1::uuid ORDER BY i.name`,[characterId]),
-    pool.query(`SELECT id,name,description,item_spec,created_at FROM scene_items WHERE campaign_id=$1::uuid AND character_id=$2::uuid AND status='AVAILABLE' ORDER BY created_at DESC LIMIT 20`,[campaignId,characterId])
+    pool.query(`SELECT id,name,description,item_spec,item_id,status,created_at FROM scene_items WHERE campaign_id=$1::uuid AND character_id=$2::uuid AND status IN ('AVAILABLE','TAKEN') ORDER BY created_at DESC LIMIT 20`,[campaignId,characterId])
   ]);
   return {character,recentMessages:messages.rows.reverse(),recentEvents:events.rows.reverse(),knownLocations:locations.rows,knownCreatures:bestiary.rows,quests:quests.rows,inventory:inventory.rows,availableSceneItems:sceneItems.rows};
 }
@@ -109,7 +111,7 @@ async function receiveSceneItem({campaignId,characterId,sceneItemId}) {
     const item=(await client.query(`INSERT INTO items(campaign_id,name,item_type,rarity,description,weight,base_value_gp,consumable,stackable,properties) VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb) RETURNING *`,[campaignId,spec.name,spec.item_type,spec.rarity,spec.description,spec.weight,spec.base_value_gp,spec.consumable,spec.stackable,JSON.stringify(spec.properties)])).rows[0];
     const entry=(await client.query(`INSERT INTO inventory_entries(character_id,item_id,quantity) VALUES($1::uuid,$2::uuid,1) ON CONFLICT(character_id,item_id) DO UPDATE SET quantity=inventory_entries.quantity+1 RETURNING *`,[characterId,item.id])).rows[0];
     const resultEvent=(await client.query(`INSERT INTO game_events(campaign_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload) VALUES($1::uuid,$2::uuid,'ITEM_RECEIVED','INVENTORY_ENTRY',$3::uuid,$4) RETURNING *`,[campaignId,characterId,entry.id,{itemId:item.id,itemName:item.name,quantity:1,totalQuantity:entry.quantity,sceneItemId:scene.id}])).rows[0];
-    await client.query(`UPDATE scene_items SET status='TAKEN',taken_at=now() WHERE id=$1::uuid`,[scene.id]);
+    await client.query(`UPDATE scene_items SET status='TAKEN',taken_at=now(),item_id=$1::uuid WHERE id=$2::uuid`,[item.id,scene.id]);
     await client.query(`INSERT INTO journal_entries(campaign_id,author_character_id,entry_type,title,body,tags) VALUES($1::uuid,$2::uuid,'EVENT',$3,$4,$5)`,[campaignId,characterId,'Получен предмет',`${character.name} получил(а): ${item.name}.`,['инвентарь','получение']]);
     return {event:resultEvent,inventoryEntry:entry,item,sceneItem:scene};
   });
@@ -122,6 +124,7 @@ async function executeAction({campaignId,characterId,action,sourceMessageId}) {
   if(action.type==='DISCOVER_CREATURE')return discoverCreature({campaignId,characterId,creatureId:action.creature_id,level:action.level||'SEEN',facts:Array.isArray(action.facts)?action.facts:[]});
   if(action.type==='DISCOVER_ITEM')return discoverItem({campaignId,characterId,sourceMessageId,item:action.item_spec||action});
   if(action.type==='RECEIVE_ITEM')return receiveSceneItem({campaignId,characterId,sceneItemId:action.scene_item_id});
+  if(action.type==='RETURN_ITEM')return returnSceneItem({campaignId,characterId,actorId:characterId,sceneItemId:action.scene_item_id});
   throw Object.assign(new Error('AI-Мастер запросил неподдерживаемое игровое действие'),{status:400});
 }
 
