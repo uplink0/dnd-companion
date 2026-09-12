@@ -36,6 +36,7 @@ jobs:
           node --check server/character-api.js
           node --check server/character-rules.js
           node --check server/game-engine.js
+          node --check server/item-return.js
           node --check server/player-api.js
           node --check server/rules.js
           node --check server/config.js
@@ -84,7 +85,7 @@ jobs:
               grep -v "^${key}=" .env > .env.tmp || true
               mv .env.tmp .env
               if [ -n "$value" ]; then
-                printf '%s=%s\n' "$key" "$value" >> .env
+                printf '%s=%s\n' "$key=$value" >> .env
               fi
             }
 
