@@ -33,6 +33,7 @@ jobs:
           node --check server/api.js
           node --check server/ai-api.js
           node --check server/ai-master.js
+          node --check server/codex-app-server.js
           node --check server/character-api.js
           node --check server/character-rules.js
           node --check server/game-engine.js
@@ -89,7 +90,7 @@ jobs:
               fi
             }
 
-            write_env AI_PROVIDER "${AI_PROVIDER:-openai}"
+            write_env AI_PROVIDER "${AI_PROVIDER:-codex}"
             write_env OPENAI_API_KEY "${OPENAI_API_KEY:-}"
             write_env OPENAI_BASE_URL "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
             write_env OPENAI_MODEL "${OPENAI_MODEL:-gpt-5.6-luna}"
