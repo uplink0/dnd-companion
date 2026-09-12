@@ -10,8 +10,7 @@ function assertAuth(req) {
   const expected = String(config.mcpToken || '').trim();
   if (expected && actual === `Bearer ${expected}`) return;
   if (config.mcpOAuthEnabled && /^Bearer\s+\S+$/i.test(actual) && verifyOAuthAccessToken(actual.slice(7).trim())) return;
-  const error = Object.assign(new Error('Unauthorized'), { status: 401 });
-  throw error;
+  throw Object.assign(new Error('Unauthorized'), { status: 401 });
 }
 
 function textResult(value) {
@@ -20,14 +19,15 @@ function textResult(value) {
 
 function createServer() {
   const server = new McpServer(
-    { name: 'dnd-realm', version: '1.0.0' },
-    { capabilities: { tools: {} }, instructions: 'Read-only access to the D&D Realm campaign state. Do not invent state that is not returned by tools.' }
+    { name: 'dnd-realm', version: '1.2.0' },
+    { capabilities: { tools: {} }, instructions: 'Read-only access to the D&D Realm campaign state. Never invent state that is not returned by tools.' }
   );
 
   server.registerTool('get_character', {
     title: 'Get character',
     description: 'Read one character from a D&D Realm campaign.',
-    inputSchema: { campaignId: z.string().uuid(), characterId: z.string().uuid() }
+    inputSchema: { campaignId: z.string().uuid(), characterId: z.string().uuid() },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, async ({ campaignId, characterId }) => {
     const { rows } = await pool.query(`SELECT id,campaign_id,user_id,kind,name,race,class_name,subclass,background,rank,level,xp,xp_next,hp,hp_max,temp_hp,armor_class,speed,initiative,proficiency_bonus,inspiration,spell_save_dc,spell_attack_bonus,hit_dice,death_saves,abilities,saving_throw_proficiencies,skill_proficiencies,proficiencies,languages,senses,traits,currency,updated_at FROM characters WHERE id=$1::uuid AND campaign_id=$2::uuid`, [characterId, campaignId]);
     if (!rows[0]) throw Object.assign(new Error('Character not found'), { status: 404 });
@@ -37,7 +37,8 @@ function createServer() {
   server.registerTool('get_game_state', {
     title: 'Get game state',
     description: 'Read the current campaign state relevant to a character: character, inventory, active quests, discoveries, and recent events.',
-    inputSchema: { campaignId: z.string().uuid(), characterId: z.string().uuid(), recentEvents: z.number().int().min(1).max(50).default(15) }
+    inputSchema: { campaignId: z.string().uuid(), characterId: z.string().uuid(), recentEvents: z.number().int().min(1).max(50).default(15) },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, async ({ campaignId, characterId, recentEvents }) => {
     const character = (await pool.query(`SELECT id,campaign_id,name,race,class_name,subclass,background,level,xp,xp_next,hp,hp_max,temp_hp,armor_class,speed,initiative,proficiency_bonus,inspiration,abilities,skill_proficiencies,proficiencies,languages,traits,currency FROM characters WHERE id=$1::uuid AND campaign_id=$2::uuid`, [characterId, campaignId])).rows[0];
     if (!character) throw Object.assign(new Error('Character not found'), { status: 404 });
@@ -55,7 +56,8 @@ function createServer() {
   server.registerTool('get_recent_history', {
     title: 'Get recent history',
     description: 'Read recent player and master messages for one character.',
-    inputSchema: { campaignId: z.string().uuid(), characterId: z.string().uuid(), limit: z.number().int().min(1).max(50).default(20) }
+    inputSchema: { campaignId: z.string().uuid(), characterId: z.string().uuid(), limit: z.number().int().min(1).max(50).default(20) },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, async ({ campaignId, characterId, limit }) => {
     const { rows } = await pool.query(`SELECT id,role,body,metadata,created_at FROM messages WHERE campaign_id=$1::uuid AND character_id=$2::uuid ORDER BY created_at DESC LIMIT $3`, [campaignId, characterId, limit]);
     return textResult(rows.reverse());
@@ -64,10 +66,10 @@ function createServer() {
   return server;
 }
 
-export function mountMcp(app) {
+export function mountMcp(app, { path = '/mcp', healthPath = '/mcp/health' } = {}) {
   if (!config.mcpEnabled) return;
-  app.get('/mcp/health', (req, res) => res.json({ ok: true, service: 'dnd-realm-mcp', version: '1.1.0', oauth: config.mcpOAuthEnabled }));
-  app.all('/mcp', async (req, res) => {
+  app.get(healthPath, (req, res) => res.json({ ok: true, service: 'dnd-realm-mcp', version: '1.2.0', endpoint: path, oauth: config.mcpOAuthEnabled }));
+  app.all(path, async (req, res) => {
     try {
       assertAuth(req);
       const server = createServer();
@@ -78,7 +80,7 @@ export function mountMcp(app) {
     } catch (error) {
       const status = error.status || 500;
       if (status === 401) {
-        const resource = `${req.protocol}://${req.get('host')}/.well-known/oauth-protected-resource`;
+        const resource = `${req.protocol}://${req.get('host')}/.well-known/oauth-protected-resource${path === '/mcp' ? '' : path}`;
         res.set('WWW-Authenticate', `Bearer resource_metadata="${resource}", scope="mcp:read"`);
       }
       if (!res.headersSent) res.status(status).json({ error: error.message });
