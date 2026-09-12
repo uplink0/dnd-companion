@@ -3,7 +3,7 @@ import 'dotenv/config';
 const aiProvider = String(process.env.AI_PROVIDER || (process.env.OPENROUTER_API_KEY ? 'openrouter' : 'codex')).toLowerCase();
 const useOpenRouter = aiProvider === 'openrouter';
 const useCodex = aiProvider === 'codex';
-const aiApiKey = useCodex ? 'codex-local-bridge' : (useOpenRouter ? (process.env.OPENROUTER_API_KEY || '') : (process.env.OPENAI_API_KEY || ''));
+const aiApiKey = useCodex ? (process.env.DND_MCP_TOKEN || '') : (useOpenRouter ? (process.env.OPENROUTER_API_KEY || '') : (process.env.OPENAI_API_KEY || ''));
 const aiBaseUrl = useCodex
   ? `http://127.0.0.1:${Number(process.env.PORT || 3000)}/internal-ai`
   : (useOpenRouter ? (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1') : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'));
