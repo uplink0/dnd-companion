@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { handlePlayerMessage, handleRoll } from './ai-master.js';
 import { pool, transaction } from './db.js';
@@ -40,34 +41,36 @@ function receiptResponse(receipt) { return receipt?.response?.status === 'done' 
 
 aiApi.post('/campaigns/:id/ai/messages', asyncRoute(async (req, res) => {
   const campaignId = z.string().uuid().parse(req.params.id);
-  const input = z.object({ characterId:z.string().uuid(), body:z.string().trim().min(1).max(4000), clientActionId:z.string().uuid() }).parse(req.body);
+  const input = z.object({ characterId:z.string().uuid(), body:z.string().trim().min(1).max(4000), clientActionId:z.string().uuid().optional() }).parse(req.body);
   await assertCharacter(input.characterId,campaignId);
-  const claim = await claimAction({ campaignId, characterId:input.characterId, clientActionId:input.clientActionId, actionType:'PLAYER_MESSAGE' });
+  const clientActionId = input.clientActionId || randomUUID();
+  const claim = await claimAction({ campaignId, characterId:input.characterId, clientActionId, actionType:'PLAYER_MESSAGE' });
   const cached = receiptResponse(claim.existing);
   if (cached) return res.status(200).json(cached);
   try {
     const result = await handlePlayerMessage({campaignId,...input});
-    await finishAction({campaignId, characterId:input.characterId, clientActionId:input.clientActionId, response:result});
+    await finishAction({campaignId, characterId:input.characterId, clientActionId, response:result});
     res.status(201).json(result);
   } catch (error) {
-    await failAction({campaignId, characterId:input.characterId, clientActionId:input.clientActionId, error:error.message});
+    await failAction({campaignId, characterId:input.characterId, clientActionId, error:error.message});
     throw error;
   }
 }));
 
 aiApi.post('/campaigns/:id/ai/roll', asyncRoute(async (req,res) => {
   const campaignId=z.string().uuid().parse(req.params.id);
-  const input=z.object({characterId:z.string().uuid(),masterMessageId:z.string().uuid(),clientActionId:z.string().uuid()}).parse(req.body);
+  const input=z.object({characterId:z.string().uuid(),masterMessageId:z.string().uuid(),clientActionId:z.string().uuid().optional()}).parse(req.body);
   await assertCharacter(input.characterId,campaignId);
-  const claim = await claimAction({ campaignId, characterId:input.characterId, clientActionId:input.clientActionId, actionType:'ROLL' });
+  const clientActionId = input.clientActionId || randomUUID();
+  const claim = await claimAction({ campaignId, characterId:input.characterId, clientActionId, actionType:'ROLL' });
   const cached = receiptResponse(claim.existing);
   if (cached) return res.status(200).json(cached);
   try {
     const result = await handleRoll({campaignId,...input});
-    await finishAction({campaignId, characterId:input.characterId, clientActionId:input.clientActionId, response:result});
+    await finishAction({campaignId, characterId:input.characterId, clientActionId, response:result});
     res.status(201).json(result);
   } catch (error) {
-    await failAction({campaignId, characterId:input.characterId, clientActionId:input.clientActionId, error:error.message});
+    await failAction({campaignId, characterId:input.characterId, clientActionId, error:error.message});
     throw error;
   }
 }));
