@@ -19,7 +19,6 @@ const listeners = new Set();
 async function ensureConfig() {
   await mkdir(CODEX_HOME, { recursive: true });
   if (!process.env.DND_MCP_TOKEN) throw new Error('DND_MCP_TOKEN is not configured');
-
   const config = `cli_auth_credentials_store = "file"\ncheck_for_update_on_startup = false\n\n[mcp_servers.dnd_realm]\nurl = "${MCP_URL.replace(/"/g, '\\"')}"\nbearer_token_env_var = "DND_MCP_TOKEN"\nenabled = true\nrequired = true\nstartup_timeout_sec = 15\ntool_timeout_sec = 30\nenabled_tools = ["get_character", "get_game_state", "get_recent_history"]\ndefault_tools_approval_mode = "approve"\n`;
   try {
     const current = await readFile(CONFIG_PATH, 'utf8');
@@ -46,7 +45,6 @@ function handleMessage(message) {
       else waiter.resolve(message.result);
     }
   }
-
   if (message.method === 'account/login/completed') {
     const loginId = message.params?.loginId;
     if (loginId && loginWaiters.has(loginId)) {
@@ -56,7 +54,6 @@ function handleMessage(message) {
       else waiter.reject(new Error(message.params?.error || 'ChatGPT login failed'));
     }
   }
-
   for (const listener of listeners) listener(message);
 }
 
@@ -72,124 +69,89 @@ function consume() {
 
 function startProcess() {
   if (child && !child.killed) return;
-  child = spawn(CODEX_BIN, ['app-server', '--listen', 'stdio://'], {
-    env: { ...process.env, CODEX_HOME },
-    stdio: ['pipe', 'pipe', 'pipe']
-  });
+  child = spawn(CODEX_BIN, ['app-server', '--listen', 'stdio://'], { env: { ...process.env, CODEX_HOME }, stdio: ['pipe', 'pipe', 'pipe'] });
   initialized = false;
   buffer = '';
   child.stdout.on('data', (chunk) => { buffer += chunk.toString(); consume(); });
   child.stderr.on('data', (chunk) => console.error(`[codex] ${chunk.toString().trimEnd()}`));
-  child.on('exit', (code, signal) => {
-    child = null;
-    initialized = false;
-    rejectAll(new Error(`Codex app-server stopped (code=${code}, signal=${signal})`));
-  });
+  child.on('exit', (code, signal) => { child = null; initialized = false; rejectAll(new Error(`Codex app-server stopped (code=${code}, signal=${signal})`)); });
 }
 
 function request(method, params = {}) {
   startProcess();
   const id = String(nextId++);
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      reject(new Error(`Codex request timeout: ${method}`));
-    }, REQUEST_TIMEOUT_MS);
-    pending.set(id, {
-      resolve: (value) => { clearTimeout(timer); resolve(value); },
-      reject: (error) => { clearTimeout(timer); reject(error); }
-    });
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Codex request timeout: ${method}`)); }, REQUEST_TIMEOUT_MS);
+    pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
     child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
   });
 }
 
 async function initialize() {
   if (initialized) return;
-  await request('initialize', {
-    clientInfo: { name: 'dnd-realm', title: 'D&D Realm AI bridge', version: '1.0.0' },
-    capabilities: { experimentalApi: true }
-  });
+  await request('initialize', { clientInfo: { name: 'dnd-realm', title: 'D&D Realm AI bridge', version: '1.0.0' }, capabilities: { experimentalApi: true } });
   child.stdin.write(`${JSON.stringify({ method: 'initialized' })}\n`);
   initialized = true;
 }
 
-export async function codexStatus() {
-  await ensureConfig();
-  await initialize();
-  const account = await request('account/read', { refreshToken: true });
-  if (account?.account?.type === 'chatgpt') return { ...account, requiresOpenaiAuth: false };
-  return account;
-}
+export async function codexStatus() { await ensureConfig(); await initialize(); const account = await request('account/read', { refreshToken: true }); if (account?.account?.type === 'chatgpt') return { ...account, requiresOpenaiAuth: false }; return account; }
+export async function startChatGptDeviceLogin() { await ensureConfig(); await initialize(); return request('account/login/start', { type: 'chatgptDeviceCode' }); }
+export async function waitForLogin(loginId) { return new Promise((resolve, reject) => { loginWaiters.set(loginId, { resolve, reject }); setTimeout(() => { if (loginWaiters.delete(loginId)) reject(new Error('ChatGPT login timed out')); }, 10 * 60 * 1000); }); }
 
-export async function startChatGptDeviceLogin() {
-  await ensureConfig();
-  await initialize();
-  return request('account/login/start', { type: 'chatgptDeviceCode' });
-}
-
-export async function waitForLogin(loginId) {
-  return new Promise((resolve, reject) => {
-    loginWaiters.set(loginId, { resolve, reject });
-    setTimeout(() => {
-      if (loginWaiters.delete(loginId)) reject(new Error('ChatGPT login timed out'));
-    }, 10 * 60 * 1000);
-  });
+function eventTurnId(message) { return message.params?.turnId || message.params?.turn?.id || message.params?.item?.turnId || message.params?.item?.turn_id; }
+function eventText(message) {
+  if (typeof message.params?.delta === 'string') return message.params.delta;
+  const item = message.params?.item;
+  if (!item) return '';
+  if (typeof item.text === 'string') return item.text;
+  if (Array.isArray(item.content)) return item.content.map((part) => typeof part?.text === 'string' ? part.text : typeof part?.text?.value === 'string' ? part.text.value : typeof part?.content === 'string' ? part.content : '').join('');
+  return '';
 }
 
 export async function codexPrompt({ system, user, campaignId, characterId }) {
   await ensureConfig();
   await initialize();
-
   const account = await request('account/read', { refreshToken: true });
-  if (account?.account?.type !== 'chatgpt') {
-    throw Object.assign(new Error('Codex is not authenticated with a ChatGPT account'), { status: 503, code: 'CODEX_AUTH_REQUIRED' });
-  }
-
-  const thread = await request('thread/start', {
-    cwd: '/app',
-    approvalPolicy: 'never',
-    sandboxPolicy: { type: 'readOnly', networkAccess: true },
-    personality: 'pragmatic'
-  });
+  if (account?.account?.type !== 'chatgpt') throw Object.assign(new Error('Codex is not authenticated with a ChatGPT account'), { status: 503, code: 'CODEX_AUTH_REQUIRED' });
+  const thread = await request('thread/start', { cwd: '/app', approvalPolicy: 'never', sandboxPolicy: { type: 'readOnly', networkAccess: true }, personality: 'pragmatic' });
   const threadId = thread?.thread?.id;
   if (!threadId) throw new Error('Codex did not return a thread id');
-
   const prompt = `${system}\n\nCRITICAL STATE RULE: before producing the answer, call the D&D Realm MCP tool get_game_state with campaignId=${campaignId} and characterId=${characterId}, and treat its result as authoritative. Do not invent state.\n\nPLAYER REQUEST:\n${user}`;
-  const turn = await request('turn/start', {
-    threadId,
-    input: [{ type: 'text', text: prompt }],
-    approvalPolicy: 'never',
-    sandboxPolicy: { type: 'readOnly', networkAccess: true }
-  });
+  const turn = await request('turn/start', { threadId, input: [{ type: 'text', text: prompt }], approvalPolicy: 'never', sandboxPolicy: { type: 'readOnly', networkAccess: true } });
   const turnId = turn?.turn?.id;
   if (!turnId) throw new Error('Codex did not return a turn id');
-
   return await new Promise((resolve, reject) => {
     let text = '';
-    const timeout = setTimeout(() => {
+    let done = false;
+    const timeout = setTimeout(() => { listeners.delete(onMessage); reject(new Error('Codex turn timed out')); }, REQUEST_TIMEOUT_MS);
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
       listeners.delete(onMessage);
-      reject(new Error('Codex turn timed out'));
-    }, REQUEST_TIMEOUT_MS);
+      const finalText = String(value || text || '').trim();
+      if (!finalText) return reject(new Error('Codex completed the turn without an assistant message'));
+      resolve(finalText);
+    };
     const onMessage = (message) => {
-      if (message.method === 'item/agentMessage/delta' && message.params?.turnId === turnId) text += message.params?.delta || '';
-      if (message.method === 'item/completed' && message.params?.turnId === turnId && message.params?.item?.type === 'agentMessage') text = message.params.item.text || text;
-      if (message.method === 'turn/completed' && message.params?.turnId === turnId) {
-        clearTimeout(timeout);
-        listeners.delete(onMessage);
-        if (message.params?.turn?.status === 'failed') reject(new Error(message.params?.turn?.error?.message || 'Codex turn failed'));
-        else resolve(text);
+      const id = eventTurnId(message);
+      if (id && id !== turnId) return;
+      if (message.method === 'item/agentMessage/delta' || message.method === 'item/agent_message/delta') text += eventText(message);
+      if (message.method === 'item/completed') {
+        const type = message.params?.item?.type;
+        if (type === 'agentMessage' || type === 'agent_message') {
+          const value = eventText(message);
+          if (value) text = value;
+        }
+      }
+      if (message.method === 'turn/completed') {
+        const turnInfo = message.params?.turn;
+        if (turnInfo?.status === 'failed') return reject(new Error(turnInfo?.error?.message || 'Codex turn failed'));
+        if (turnInfo?.status === 'completed' || !turnInfo?.status) finish(text);
       }
     };
     listeners.add(onMessage);
   });
 }
-
-export function codexAuthRequiredError() {
-  return Object.assign(new Error('ChatGPT authentication is required. Open /api/codex/login/start to start device login.'), { status: 503, code: 'CODEX_AUTH_REQUIRED' });
-}
-
-export async function shutdownCodex() {
-  if (child) child.kill('SIGTERM');
-  child = null;
-  initialized = false;
-}
+export function codexAuthRequiredError() { return Object.assign(new Error('ChatGPT authentication is required. Open /api/codex/login/start to start device login.'), { status: 503, code: 'CODEX_AUTH_REQUIRED' }); }
+export async function shutdownCodex() { if (child) child.kill('SIGTERM'); child = null; initialized = false; }
