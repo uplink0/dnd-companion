@@ -13,7 +13,7 @@ const RULES = `
 
 ЖЁСТКИЕ ПРАВИЛА:
 1. Персонаж — центральный субъект состояния игры.
-2. Состояние игры является источником истины. Не выдумывай HP, предметы, характеристики, локации, существ, задания или прошлые события.
+2. Состояние игры является источником истины. Не выдумывай HP, предметы, характеристики, локации, существа, задания или прошлые события.
 3. Ты не имеешь прямого доступа к БД. Изменения выполняет только Game Engine.
 4. НИКОГДА не бросай кубики самостоятельно.
 5. Если действие требует проверки, остановись перед результатом и верни pending_roll. Игрок обязан явно нажать кнопку броска.
@@ -80,7 +80,7 @@ async function contextFor(characterId, campaignId) {
 
 async function askModel(messages) {
   if(!config.aiApiKey) throw Object.assign(new Error('AI-Мастер не настроен: отсутствует API-ключ'),{status:503});
-  const response=await fetch(`${config.aiBaseUrl.replace(/\/$/,'')}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.aiApiKey}`},body:JSON.stringify({model:config.aiModel,messages,temperature:.75,max_completion_tokens:1400})});
+  const response=await fetch(`${config.aiBaseUrl.replace(/\/$/,'')}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.aiApiKey}`},body:JSON.stringify({model:config.aiModel,messages,max_completion_tokens:1400})});
   const text=await response.text();
   if(!response.ok) throw Object.assign(new Error(`AI-Мастер: HTTP ${response.status}: ${text.slice(0,500)}`),{status:response.status>=500?502:response.status});
   const data=JSON.parse(text);
@@ -140,35 +140,26 @@ export async function handlePlayerMessage({campaignId,characterId,body}) {
   try {
     const result=await askModel([{role:'system',content:RULES},{role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ:\n${JSON.stringify(context)}`},{role:'user',content:body}]);
     const pendingRoll=normalizeRoll(context.character,result.pending_roll);
-    const action=result.action||null;
-    let actionResult=null;
-    if(action&&!pendingRoll)actionResult=await executeAction({campaignId,characterId,action,sourceMessageId:player.id});
-    await pool.query(`UPDATE messages SET metadata=jsonb_set(metadata,'{status}','\"sent\"'::jsonb) WHERE id=$1::uuid`,[player.id]);
-    const master=await saveMasterMessage({campaignId,characterId,narrative:String(result.narrative||'Мастер ожидает вашего действия.'),metadata:{ai:true,pendingRoll,action:action&&!pendingRoll?action:null,actionResult:actionResult?{eventId:actionResult.event?.id||null}:null}});
-    return {player:{...player,metadata:{...player.metadata,status:'sent'}},master,pendingRoll};
-  } catch (error) {
-    await pool.query(`UPDATE messages SET metadata=jsonb_set(metadata,'{status}','\"failed\"'::jsonb)||jsonb_build_object('error',$2::text) WHERE id=$1::uuid`,[player.id,error.message]);
+    const action=result.action ? await executeAction({campaignId,characterId,action:result.action,sourceMessageId:player.id}) : null;
+    const narrative=String(result.narrative||'').trim();
+    const master=await saveMasterMessage({campaignId,characterId,narrative,metadata:{pendingRoll,actionType:result.action?.type||null,actionResult:action}});
+    await pool.query(`UPDATE messages SET metadata=$2::jsonb WHERE id=$1::uuid`,[player.id,JSON.stringify({status:'sent'})]);
+    return {message:master,pendingRoll,action};
+  } catch(error) {
+    await pool.query(`UPDATE messages SET metadata=$2::jsonb WHERE id=$1::uuid`,[player.id,JSON.stringify({status:'failed',error:error.message})]);
     throw error;
   }
 }
 
 export async function handleRoll({campaignId,characterId,masterMessageId}) {
   const context=await contextFor(characterId,campaignId);
-  const message=(await pool.query(`SELECT id,metadata FROM messages WHERE id=$1::uuid AND campaign_id=$2::uuid AND character_id=$3::uuid AND role='MASTER'`,[masterMessageId,campaignId,characterId])).rows[0];
-  const pending=message?.metadata?.pendingRoll;
-  if(!pending)throw Object.assign(new Error('Этот бросок уже выполнен или больше не доступен'),{status:409});
-  const rollSpec=normalizeRoll(context.character,pending);
-  const rolled=rollDice(`1d${rollSpec.sides}`);
-  const total=rolled.diceTotal+rollSpec.modifier;
-  const success=total>=rollSpec.dc;
-  const rollPayload={...rollSpec,die:rolled.diceTotal,total,success};
-  const {rows}=await pool.query(`INSERT INTO dice_rolls(campaign_id,character_id,notation,dice_total,modifier,total,reason) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7) RETURNING *`,[campaignId,characterId,rollSpec.notation,rolled.diceTotal,rollSpec.modifier,total,rollSpec.reason]);
-  await pool.query(`INSERT INTO game_events(campaign_id,actor_character_id,event_type,aggregate_type,aggregate_id,payload) VALUES($1::uuid,$2::uuid,'DICE_ROLL','CHARACTER',$2::uuid,$3)`,[campaignId,characterId,rollPayload]);
-  await pool.query(`INSERT INTO messages(campaign_id,character_id,role,body,metadata) VALUES($1::uuid,$2::uuid,'SYSTEM',$3,$4)`,[campaignId,characterId,'',{roll:rollPayload}]);
-  await pool.query(`UPDATE messages SET metadata=jsonb_set(metadata,'{pendingRoll}','null'::jsonb) WHERE id=$1::uuid`,[masterMessageId]);
-  const followup=await askModel([{role:'system',content:RULES},{role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ:\n${JSON.stringify(context)}`},{role:'system',content:`ИГРОВОЙ ДВИЖОК УЖЕ ВЫПОЛНИЛ БРОСОК ПОСЛЕ ЯВНОГО ДЕЙСТВИЯ ИГРОКА. Нельзя менять или придумывать результат. Проверка: ${JSON.stringify(rollSpec)}. Выпало: ${rolled.diceTotal}. Итог: ${total}. Успех: ${success}. Теперь опиши последствия. Новый бросок не запрашивай в этом ответе.`},{role:'user',content:'Продолжи сцену после результата проверки.'}]);
-  let actionResult=null;
-  if(followup.action)actionResult=await executeAction({campaignId,characterId,action:followup.action});
-  const master=await saveMasterMessage({campaignId,characterId,narrative:String(followup.narrative||'Мастер продолжает повествование.'),metadata:{ai:true,action:followup.action||null,actionResult:actionResult?{eventId:actionResult.event?.id||null}:null}});
-  return {master,roll:{...rows[0],dice:rolled.dice,...rollSpec,success},pendingRoll:null};
+  const master=(await pool.query(`SELECT id,metadata FROM messages WHERE id=$1::uuid AND campaign_id=$2::uuid AND character_id=$3::uuid AND role='MASTER'`,[masterMessageId,campaignId,characterId])).rows[0];
+  if(!master) throw Object.assign(new Error('Сообщение мастера не найдено'),{status:404});
+  const pending=master.metadata?.pendingRoll;
+  if(!pending) throw Object.assign(new Error('Для этого сообщения нет ожидаемого броска'),{status:409});
+  const roll=rollDice(pending.sides,pending.modifier);
+  const total=roll.total;
+  const success=total>=pending.dc;
+  const result=await saveMasterMessage({campaignId,characterId,narrative:`Результат проверки: ${total} против КС ${pending.dc} — ${success?'успех':'неудача'}.`,metadata:{roll:{...roll,dc:pending.dc,success},masterMessageId}});
+  return {message:result,roll:{...roll,dc:pending.dc,success}};
 }
