@@ -1,14 +1,15 @@
 import 'dotenv/config';
 
-const aiProvider = String(process.env.AI_PROVIDER || (process.env.OPENROUTER_API_KEY ? 'openrouter' : 'openai')).toLowerCase();
+const aiProvider = String(process.env.AI_PROVIDER || (process.env.OPENROUTER_API_KEY ? 'openrouter' : 'codex')).toLowerCase();
 const useOpenRouter = aiProvider === 'openrouter';
-const aiApiKey = useOpenRouter ? (process.env.OPENROUTER_API_KEY || '') : (process.env.OPENAI_API_KEY || '');
-const aiBaseUrl = useOpenRouter
-  ? (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1')
-  : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
-const aiModel = useOpenRouter
-  ? (process.env.OPENROUTER_MODEL || 'openrouter/free')
-  : (process.env.OPENAI_MODEL || 'gpt-5.6-luna');
+const useCodex = aiProvider === 'codex';
+const aiApiKey = useCodex ? 'codex-local-bridge' : (useOpenRouter ? (process.env.OPENROUTER_API_KEY || '') : (process.env.OPENAI_API_KEY || ''));
+const aiBaseUrl = useCodex
+  ? `http://127.0.0.1:${Number(process.env.PORT || 3000)}/internal-ai`
+  : (useOpenRouter ? (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1') : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'));
+const aiModel = useCodex
+  ? (process.env.CODEX_MODEL || 'codex-default')
+  : (useOpenRouter ? (process.env.OPENROUTER_MODEL || 'openrouter/free') : (process.env.OPENAI_MODEL || 'gpt-5.6-luna'));
 
 export const config = {
   port: Number(process.env.PORT || 3000),
@@ -23,5 +24,6 @@ export const config = {
   aiProvider,
   aiApiKey,
   aiBaseUrl,
-  aiModel
+  aiModel,
+  codexHome: process.env.CODEX_HOME || '/data/codex'
 };
