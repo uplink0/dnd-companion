@@ -28,15 +28,15 @@ if (config.aiProvider === 'codex') {
   });
   app.post('/internal-ai/chat/completions', async (req,res,next) => {
     try {
+      const auth = String(req.headers.authorization || '');
+      if (!config.aiApiKey || auth !== `Bearer ${config.aiApiKey}`) return res.status(401).json({error:'Unauthorized'});
       const messages = Array.isArray(req.body?.messages) ? req.body.messages : [];
       const system = messages.filter((message) => message?.role === 'system').map((message) => String(message.content || '')).join('\n\n');
       const user = messages.filter((message) => message?.role !== 'system').map((message) => `${String(message.role || 'user').toUpperCase()}: ${String(message.content || '')}`).join('\n\n');
-      const result = await codexPrompt({
-        system,
-        user,
-        campaignId: req.body?.campaignId || config.defaultCampaignId,
-        characterId: req.body?.characterId || config.defaultCharacterId
-      });
+      const uuidMatches = `${system}\n${user}`.match(/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi) || [];
+      const campaignId = req.body?.campaignId || uuidMatches[0] || config.defaultCampaignId;
+      const characterId = req.body?.characterId || uuidMatches[1] || config.defaultCharacterId;
+      const result = await codexPrompt({ system, user, campaignId, characterId });
       res.json({ id:`codex-${Date.now()}`, object:'chat.completion', model:config.aiModel, choices:[{index:0,message:{role:'assistant',content:result},finish_reason:'stop'}] });
     } catch (error) { next(error); }
   });
