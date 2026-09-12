@@ -1,8 +1,14 @@
 import 'dotenv/config';
 
-const aiApiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '';
-const aiBaseUrl = process.env.OPENAI_BASE_URL || (process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1');
-const aiModel = process.env.OPENAI_MODEL || (process.env.OPENROUTER_API_KEY ? 'openrouter/free' : 'gpt-5.6-luna');
+const aiProvider = String(process.env.AI_PROVIDER || (process.env.OPENROUTER_API_KEY ? 'openrouter' : 'openai')).toLowerCase();
+const useOpenRouter = aiProvider === 'openrouter';
+const aiApiKey = useOpenRouter ? (process.env.OPENROUTER_API_KEY || '') : (process.env.OPENAI_API_KEY || '');
+const aiBaseUrl = useOpenRouter
+  ? (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1')
+  : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+const aiModel = useOpenRouter
+  ? (process.env.OPENROUTER_MODEL || 'openrouter/free')
+  : (process.env.OPENAI_MODEL || 'gpt-5.6-luna');
 
 export const config = {
   port: Number(process.env.PORT || 3000),
@@ -14,6 +20,7 @@ export const config = {
   seedDemo: process.env.SEED_DEMO !== 'false',
   defaultCampaignId: process.env.DEFAULT_CAMPAIGN_ID || '10000000-0000-4000-8000-000000000001',
   defaultCharacterId: process.env.DEFAULT_CHARACTER_ID || '30000000-0000-4000-8000-000000000001',
+  aiProvider,
   aiApiKey,
   aiBaseUrl,
   aiModel
