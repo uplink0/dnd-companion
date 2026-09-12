@@ -2,15 +2,18 @@ import crypto from 'node:crypto';
 
 export const abilityModifier = (score) => Math.floor((Number(score) - 10) / 2);
 
-export function rollDice(notation) {
-  const match = /^(\d+)d(\d+)(?:([+-])(\d+))?$/.exec(String(notation).replace(/\s/g, ''));
+export function rollDice(notation, legacyModifier) {
+  const normalizedNotation = Number.isInteger(Number(notation))
+    ? `1d${Number(notation)}${Number(legacyModifier || 0) >= 0 ? '+' : ''}${Number(legacyModifier || 0)}`
+    : notation;
+  const match = /^(\d+)d(\d+)(?:([+-])(\d+))?$/.exec(String(normalizedNotation).replace(/\s/g, ''));
   if (!match) throw new Error('Допустимый формат броска: NdM+K');
   const count = Number(match[1]);
   const sides = Number(match[2]);
   const modifier = match[3] ? Number(`${match[3]}${match[4]}`) : 0;
   if (count < 1 || count > 100 || sides < 2 || sides > 1000) throw new Error('Недопустимые параметры кубиков');
   const dice = Array.from({ length: count }, () => crypto.randomInt(1, sides + 1));
-  return { notation, dice, diceTotal: dice.reduce((sum, value) => sum + value, 0), modifier, total: dice.reduce((sum, value) => sum + value, modifier) };
+  return { notation: normalizedNotation, dice, diceTotal: dice.reduce((sum, value) => sum + value, 0), modifier, total: dice.reduce((sum, value) => sum + value, modifier) };
 }
 
 export function derivedCharacter(character) {
