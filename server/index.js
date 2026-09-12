@@ -19,13 +19,15 @@ if (config.aiProvider === 'codex') {
   app.get('/api/codex/status', async (req,res,next) => {
     try { res.json(await codexStatus()); } catch (error) { next(error); }
   });
-  app.post('/api/codex/login/start', async (req,res,next) => {
+  const startCodexLogin = async (req,res,next) => {
     try {
       const login = await startChatGptDeviceLogin();
       res.json(login);
       waitForLogin(login.loginId).then(() => console.log('Codex ChatGPT login completed')).catch((error) => console.error('Codex ChatGPT login failed:', error.message));
     } catch (error) { next(error); }
-  });
+  };
+  app.get('/api/codex/login/start', startCodexLogin);
+  app.post('/api/codex/login/start', startCodexLogin);
   app.post('/internal-ai/chat/completions', async (req,res,next) => {
     try {
       const auth = String(req.headers.authorization || '');
