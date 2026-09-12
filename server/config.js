@@ -25,7 +25,7 @@ export const config = {
   mcpToken: process.env.DND_MCP_TOKEN || '',
   mcpOAuthEnabled: process.env.DND_MCP_OAUTH_ENABLED !== 'false',
   mcpOAuthSecret: process.env.DND_MCP_OAUTH_SECRET || process.env.DND_MCP_TOKEN || '',
-  mcpOAuthSetupCode: process.env.DND_MCP_OAUTH_SETUP_CODE || '',
+  mcpOAuthSetupCode: process.env.DND_MCP_OAUTH_SETUP_CODE || process.env.DND_MCP_TOKEN || '',
   aiProvider,
   aiApiKey,
   aiBaseUrl,
