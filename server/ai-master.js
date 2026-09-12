@@ -160,6 +160,16 @@ export async function handleRoll({campaignId,characterId,masterMessageId}) {
   const roll=rollDice(pending.sides,pending.modifier);
   const total=roll.total;
   const success=total>=pending.dc;
-  const result=await saveMasterMessage({campaignId,characterId,narrative:`Результат проверки: ${total} против КС ${pending.dc} — ${success?'успех':'неудача'}.`,metadata:{roll:{...roll,dc:pending.dc,success},masterMessageId}});
-  return {message:result,roll:{...roll,dc:pending.dc,success}};
+  context.recentMessages.push({role:'MASTER',body:`Результат проверки: ${total} против КС ${pending.dc} — ${success?'успех':'неудача'}.`});
+  context.recentEvents.push({event_type:'DICE_ROLL',payload:{dc:pending.dc,success,roll:{...roll}}});
+  const result=await askModel([
+    {role:'system',content:RULES},
+    {role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ ПОСЛЕ ПОДТВЕРЖДЁННОГО БРОСКА:\n${JSON.stringify(context)}`},
+    {role:'user',content:`Проверка завершена. Выпало ${roll.diceTotal} на d${pending.sides}, модификатор ${pending.modifier >= 0 ? '+' : ''}${pending.modifier}. Итог ${total}. КС ${pending.dc}. Результат: ${success?'успех':'неудача'}. Продолжи сцену естественным повествованием с учётом результата. Не повторяй технический результат броска и не упоминай JSON.`}
+  ]);
+  const pendingRoll=normalizeRoll(context.character,result.pending_roll);
+  const action=result.action ? await executeAction({campaignId,characterId,action:result.action,sourceMessageId:masterMessageId}) : null;
+  const narrative=String(result.narrative||'').trim() || `Проверка завершена: ${success?'успех':'неудача'}.`;
+  const saved=await saveMasterMessage({campaignId,characterId,narrative,metadata:{pendingRoll,actionType:result.action?.type||null,actionResult:action,roll:{...roll,dc:pending.dc,success},masterMessageId}});
+  return {message:saved,roll:{...roll,dc:pending.dc,success}};
 }
