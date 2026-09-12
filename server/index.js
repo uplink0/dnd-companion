@@ -6,6 +6,7 @@ import { api } from './api.js';
 import { characterApi } from './character-api.js';
 import { playerApi } from './player-api.js';
 import { aiApi } from './ai-api.js';
+import { mountMcp } from './mcp.js';
 import { config } from './config.js';
 import { migrate } from './migrate.js';
 
@@ -13,6 +14,7 @@ const app=express();
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 app.use(helmet({contentSecurityPolicy:false,crossOriginOpenerPolicy:false,originAgentCluster:false}));
 app.use(express.json({limit:'256kb'}));
+mountMcp(app);
 app.use('/api/characters',characterApi);
 app.use('/api/player',playerApi);
 app.use('/api',aiApi);
