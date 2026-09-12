@@ -1,0 +1,105 @@
+name: MCP Bridge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/request.json'
+
+permissions:
+  contents: write
+
+jobs:
+  call-mcp:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate request
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f mcp/request.json
+          jq -e '.status == "pending"' mcp/request.json >/dev/null
+          jq -e '.requestId and (.requestId | type == "string")' mcp/request.json >/dev/null
+          jq -e '.tool and (.tool | type == "string")' mcp/request.json >/dev/null
+          jq -e '.arguments and (.arguments | type == "object")' mcp/request.json >/dev/null
+
+      - name: Call D&D Realm MCP
+        env:
+          DND_MCP_TOKEN: ${{ secrets.DND_MCP_TOKEN }}
+          MCP_URL: https://atlas-infra.ru/mcp
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DND_MCP_TOKEN:-}" ]; then
+            echo "DND_MCP_TOKEN GitHub Secret is not configured"
+            exit 1
+          fi
+
+          REQUEST_ID=$(jq -r '.requestId' mcp/request.json)
+          TOOL=$(jq -r '.tool' mcp/request.json)
+          ARGS=$(jq -c '.arguments' mcp/request.json)
+
+          case "$TOOL" in
+            get_character|get_game_state|get_recent_history)
+              ;;
+            *)
+              echo "Unsupported MCP tool: $TOOL"
+              exit 1
+              ;;
+          esac
+
+          INITIALIZE=$(jq -nc '{jsonrpc:"2.0",id:1,method:"initialize",params:{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"github-mcp-bridge",version:"1.0.0"}}}')
+
+          INIT_RESPONSE=$(curl -fsS --retry 3 --retry-delay 2 \
+            -X POST \
+            -H "Authorization: Bearer $DND_MCP_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data "$INITIALIZE" \
+            "$MCP_URL")
+
+          echo "$INIT_RESPONSE" | jq -e '.result.protocolVersion' >/dev/null
+
+          CALL=$(jq -nc --arg tool "$TOOL" --argjson args "$ARGS" \
+            '{jsonrpc:"2.0",id:2,method:"tools/call",params:{name:$tool,arguments:$args}}')
+
+          CALL_RESPONSE=$(curl -fsS --retry 3 --retry-delay 2 \
+            -X POST \
+            -H "Authorization: Bearer $DND_MCP_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data "$CALL" \
+            "$MCP_URL")
+
+          if echo "$CALL_RESPONSE" | jq -e '.error' >/dev/null; then
+            jq -n \
+              --arg requestId "$REQUEST_ID" \
+              --arg tool "$TOOL" \
+              --argjson response "$CALL_RESPONSE" \
+              '{requestId:$requestId,status:"error",tool:$tool,error:$response.error}' > mcp/response.json
+          else
+            jq -n \
+              --arg requestId "$REQUEST_ID" \
+              --arg tool "$TOOL" \
+              --argjson response "$CALL_RESPONSE" \
+              '{requestId:$requestId,status:"success",tool:$tool,result:$response.result}' > mcp/response.json
+          fi
+
+      - name: Commit MCP response
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mcp/response.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Return MCP bridge response'
+          git push
