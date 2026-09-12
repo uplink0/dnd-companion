@@ -94,17 +94,34 @@ async function enrichDiscoveredItem({ result, context }) {
   const current = result.action.item_spec || result.action;
   const name = String(current?.name || '').trim();
   const description = String(current?.description || current?.item_description || '').trim();
-  const incomplete = !name || name === 'Найденный предмет' || !description;
-  if (!incomplete) return result;
-
-  const sourceNarrative = String(result.narrative || '').trim();
+  if (name && name !== 'Найденный предмет' && description) return result;
   const enriched = await askModel([
-    { role:'system', content:`Ты отвечаешь за структурирование предметов в D&D Realm. Состояние игры — источник истины. Извлеки ТОЛЬКО конкретные сведения о найденном предмете из переданного narrative и контекста. Ничего не выдумывай. Верни только JSON без markdown: {"name":"...","item_type":"MISC|CONSUMABLE|WEAPON|ARMOR|SHIELD|TOOL|ADVENTURING_GEAR|FOOD|QUEST_ITEM|MAGIC_ITEM","rarity":"COMMON|UNCOMMON|RARE|VERY_RARE|LEGENDARY","description":"...","material":"","weight":0,"base_value_gp":0,"consumable":false,"stackable":false,"properties":[]}. Если магические свойства не подтверждены, не добавляй их.` },
+    { role:'system', content:`Ты структурируешь найденный предмет для D&D Realm. Извлеки ТОЛЬКО подтверждённые сведения из narrative и контекста. Ничего не выдумывай. Верни только JSON: {"name":"...","item_type":"MISC|CONSUMABLE|WEAPON|ARMOR|SHIELD|TOOL|ADVENTURING_GEAR|FOOD|QUEST_ITEM|MAGIC_ITEM","rarity":"COMMON|UNCOMMON|RARE|VERY_RARE|LEGENDARY","description":"...","material":"","weight":0,"base_value_gp":0,"consumable":false,"stackable":false,"properties":[]}.` },
     { role:'system', content:`Контекст состояния:\n${JSON.stringify(context)}` },
-    { role:'user', content:`Narrative Мастера:\n${sourceNarrative}\n\nЧерновая карточка предмета:\n${JSON.stringify(current)}` }
+    { role:'user', content:`Narrative Мастера:\n${String(result.narrative || '').trim()}\n\nЧерновая карточка:\n${JSON.stringify(current)}` }
   ]);
-  const itemSpec = { ...current, ...enriched };
-  return { ...result, action: { ...result.action, item_spec: itemSpec } };
+  return { ...result, action:{ ...result.action, item_spec:{ ...current, ...enriched } } };
+}
+
+async function enrichExistingSceneItem({ result, context }) {
+  if (!result?.action || result.action.type !== 'RECEIVE_ITEM') return result;
+  const sceneItemId = result.action.scene_item_id;
+  const scene = context.availableSceneItems.find((item) => item.id === sceneItemId);
+  if (!scene) return result;
+  const spec = scene.item_spec && typeof scene.item_spec === 'object' ? scene.item_spec : {};
+  const incomplete = !String(scene.name || '').trim() || scene.name === 'Найденный предмет' || !String(scene.description || spec.description || '').trim();
+  if (!incomplete) return result;
+  const enriched = await askModel([
+    { role:'system', content:`Восстанови карточку уже обнаруженного предмета D&D Realm. Используй только подтверждённые сведения из истории и текущего контекста. Ничего не выдумывай. Верни только JSON: {"name":"...","item_type":"MISC|CONSUMABLE|WEAPON|ARMOR|SHIELD|TOOL|ADVENTURING_GEAR|FOOD|QUEST_ITEM|MAGIC_ITEM","rarity":"COMMON|UNCOMMON|RARE|VERY_RARE|LEGENDARY","description":"...","material":"","weight":0,"base_value_gp":0,"consumable":false,"stackable":false,"properties":[]}.` },
+    { role:'system', content:`Контекст состояния:\n${JSON.stringify(context)}` },
+    { role:'user', content:`Игрок сейчас забирает scene_item_id=${sceneItemId}. Предмет в БД неполный. Восстанови только сведения, которые уже подтверждены повествованием. Последние сообщения и события находятся в контексте.` }
+  ]);
+  const itemSpec = { ...spec, ...enriched };
+  if (!String(itemSpec.name || '').trim() || itemSpec.name === 'Найденный предмет' || !String(itemSpec.description || '').trim()) {
+    throw new Error('Не удалось восстановить полную карточку найденного предмета');
+  }
+  await pool.query(`UPDATE scene_items SET name=$1,description=$2,item_spec=$3::jsonb WHERE id=$4::uuid AND campaign_id=$5::uuid AND character_id=$6::uuid`,[itemSpec.name,itemSpec.description,JSON.stringify(itemSpec),sceneItemId,context.character.id,context.character.campaign_id || context.character.campaignId || '00000000-0000-0000-0000-000000000000']);
+  return result;
 }
 
 async function discoverItem({campaignId,characterId,sourceMessageId,item}) {
@@ -163,10 +180,11 @@ export async function handlePlayerMessage({campaignId,characterId,body}) {
   try {
     const rawResult=await askModel([{role:'system',content:RULES},{role:'system',content:`АКТУАЛЬНОЕ СОСТОЯНИЕ ИГРЫ:\n${JSON.stringify(context)}`},{role:'user',content:body}]);
     const result=await enrichDiscoveredItem({result:rawResult,context});
-    const pendingRoll=normalizeRoll(context.character,result.pending_roll);
-    const action=result.action ? await executeAction({campaignId,characterId,action:result.action,sourceMessageId:player.id}) : null;
-    const narrative=String(result.narrative||'').trim();
-    const master=await saveMasterMessage({campaignId,characterId,narrative,metadata:{pendingRoll,actionType:result.action?.type||null,actionResult:action}});
+    const prepared=await enrichExistingSceneItem({result,context});
+    const pendingRoll=normalizeRoll(context.character,prepared.pending_roll);
+    const action=prepared.action ? await executeAction({campaignId,characterId,action:prepared.action,sourceMessageId:player.id}) : null;
+    const narrative=String(prepared.narrative||'').trim();
+    const master=await saveMasterMessage({campaignId,characterId,narrative,metadata:{pendingRoll,actionType:prepared.action?.type||null,actionResult:action}});
     await pool.query(`UPDATE messages SET metadata=$2::jsonb WHERE id=$1::uuid`,[player.id,JSON.stringify({status:'sent'})]);
     return {message:master,pendingRoll,action};
   } catch(error) {
@@ -192,9 +210,10 @@ export async function handleRoll({campaignId,characterId,masterMessageId}) {
     {role:'user',content:`Проверка завершена. Выпало ${roll.diceTotal} на d${pending.sides}, модификатор ${pending.modifier >= 0 ? '+' : ''}${pending.modifier}. Итог ${total}. КС ${pending.dc}. Результат: ${success?'успех':'неудача'}. Продолжи сцену естественным повествованием с учётом результата. Не повторяй технический результат броска и не упоминай JSON.`}
   ]);
   const result=await enrichDiscoveredItem({result:rawResult,context});
-  const pendingRoll=normalizeRoll(context.character,result.pending_roll);
-  const action=result.action ? await executeAction({campaignId,characterId,action:result.action,sourceMessageId:masterMessageId}) : null;
-  const narrative=String(result.narrative||'').trim() || `Проверка завершена: ${success?'успех':'неудача'}.`;
-  const saved=await saveMasterMessage({campaignId,characterId,narrative,metadata:{pendingRoll,actionType:result.action?.type||null,actionResult:action,roll:{...roll,dc:pending.dc,success},masterMessageId}});
+  const prepared=await enrichExistingSceneItem({result,context});
+  const pendingRoll=normalizeRoll(context.character,prepared.pending_roll);
+  const action=prepared.action ? await executeAction({campaignId,characterId,action:prepared.action,sourceMessageId:masterMessageId}) : null;
+  const narrative=String(prepared.narrative||'').trim() || `Проверка завершена: ${success?'успех':'неудача'}.`;
+  const saved=await saveMasterMessage({campaignId,characterId,narrative,metadata:{pendingRoll,actionType:prepared.action?.type||null,actionResult:action,roll:{...roll,dc:pending.dc,success},masterMessageId}});
   return {message:saved,roll:{...roll,dc:pending.dc,success}};
 }
