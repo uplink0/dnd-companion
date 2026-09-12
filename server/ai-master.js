@@ -80,7 +80,7 @@ async function contextFor(characterId, campaignId) {
 
 async function askModel(messages) {
   if(!config.aiApiKey) throw Object.assign(new Error('AI-Мастер не настроен: отсутствует API-ключ'),{status:503});
-  const response=await fetch(`${config.aiBaseUrl.replace(/\/$/,'')}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.aiApiKey}`},body:JSON.stringify({model:config.aiModel,messages,temperature:.75,max_tokens:1400})});
+  const response=await fetch(`${config.aiBaseUrl.replace(/\/$/,'')}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.aiApiKey}`},body:JSON.stringify({model:config.aiModel,messages,temperature:.75,max_completion_tokens:1400})});
   const text=await response.text();
   if(!response.ok) throw Object.assign(new Error(`AI-Мастер: HTTP ${response.status}: ${text.slice(0,500)}`),{status:response.status>=500?502:response.status});
   const data=JSON.parse(text);
