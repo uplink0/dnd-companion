@@ -33,7 +33,6 @@ jobs:
           node --check server/api.js
           node --check server/ai-api.js
           node --check server/ai-master.js
-          node --check server/codex-app-server.js
           node --check server/mcp.js
           node --check server/mcp-oauth.js
           node --check server/character-api.js
@@ -85,8 +84,6 @@ jobs:
               fi
             }
 
-            # Local Ollama on Lenovo K14 is the canonical AI provider.
-            # Codex is no longer part of the gameplay response path.
             write_env AI_PROVIDER "ollama"
             write_env OLLAMA_BASE_URL "http://10.77.0.2:11434/v1"
             write_env OLLAMA_MODEL "qwen2.5:3b"
@@ -102,7 +99,9 @@ jobs:
             write_env OPENROUTER_MODEL "${OPENROUTER_MODEL:-openrouter/free}"
 
             docker compose down --remove-orphans || true
+            docker volume rm dnd-companion_codex_home 2>/dev/null || true
             docker compose up -d --build
+            docker image prune -f
             docker compose ps
 
             for i in $(seq 1 30); do
