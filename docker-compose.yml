@@ -22,7 +22,10 @@ services:
       SEED_DEMO: "true"
       DND_MCP_ENABLED: ${DND_MCP_ENABLED:-true}
       DND_MCP_TOKEN: ${DND_MCP_TOKEN:-}
-      AI_PROVIDER: ${AI_PROVIDER:-codex}
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://10.77.0.2:11434/v1}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-ollama}
       CODEX_HOME: /data/codex
       CODEX_MODEL: ${CODEX_MODEL:-}
       CODEX_REQUEST_TIMEOUT_MS: ${CODEX_REQUEST_TIMEOUT_MS:-120000}
