@@ -54,7 +54,6 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: appleboy/ssh-action@v1.2.2
         env:
-          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
           DND_MCP_TOKEN: ${{ secrets.DND_MCP_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
@@ -66,7 +65,7 @@ jobs:
           host: 194.147.215.29
           username: ivan
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: AI_PROVIDER,DND_MCP_TOKEN,OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL,OPENROUTER_API_KEY,OPENROUTER_BASE_URL,OPENROUTER_MODEL
+          envs: DND_MCP_TOKEN,OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL,OPENROUTER_API_KEY,OPENROUTER_BASE_URL,OPENROUTER_MODEL
           script: |
             set -e
             cd /home/ivan/dnd-companion
@@ -86,7 +85,12 @@ jobs:
               fi
             }
 
-            write_env AI_PROVIDER "${AI_PROVIDER:-codex}"
+            # Local Ollama on Lenovo K14 is the canonical AI provider.
+            # Codex is no longer part of the gameplay response path.
+            write_env AI_PROVIDER "ollama"
+            write_env OLLAMA_BASE_URL "http://10.77.0.2:11434/v1"
+            write_env OLLAMA_MODEL "qwen2.5:3b"
+            write_env OLLAMA_API_KEY "ollama"
             write_env DND_MCP_ENABLED "true"
             write_env DND_MCP_TOKEN "${DND_MCP_TOKEN:-}"
             write_env DND_MCP_OAUTH_ENABLED "true"
@@ -114,6 +118,15 @@ jobs:
                 exit 1
               fi
             done
+
+            echo "=== OLLAMA HOST CHECK ==="
+            curl -fsS http://10.77.0.2:11434/api/tags | jq -e '.models | map(.name) | index("qwen2.5:3b")' >/dev/null
+
+            echo "=== OLLAMA FROM APP CONTAINER ==="
+            docker compose exec -T app node -e "fetch('http://10.77.0.2:11434/v1/models').then(async r=>{if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(!j.data?.some(x=>x.id==='qwen2.5:3b'))throw new Error('qwen2.5:3b missing');console.log('Ollama reachable from app container')}).catch(e=>{console.error(e);process.exit(1)})"
+
+            echo "=== OLLAMA INFERENCE SMOKE TEST ==="
+            docker compose exec -T app node -e "fetch('http://10.77.0.2:11434/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer ollama'},body:JSON.stringify({model:'qwen2.5:3b',messages:[{role:'user',content:'Ответь одним словом: ГОТОВ'}],max_tokens:32,stream:false})}).then(async r=>{const t=await r.text();if(!r.ok)throw new Error('HTTP '+r.status+': '+t);const j=JSON.parse(t);if(!j.choices?.[0]?.message?.content)throw new Error('Empty Ollama response');console.log('Ollama inference OK:',j.choices[0].message.content.trim())}).catch(e=>{console.error(e);process.exit(1)})"
 
             test -n "${DND_MCP_TOKEN:-}"
             curl -fsS http://127.0.0.1:3000/mcp/health | grep -q 'dnd-realm-mcp'
