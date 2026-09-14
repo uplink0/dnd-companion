@@ -26,9 +26,6 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://10.77.0.2:11434/v1}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-ollama}
-      CODEX_HOME: /data/codex
-      CODEX_MODEL: ${CODEX_MODEL:-}
-      CODEX_REQUEST_TIMEOUT_MS: ${CODEX_REQUEST_TIMEOUT_MS:-120000}
       DND_MCP_URL: ${DND_MCP_URL:-https://atlas-infra.ru/mcp}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
@@ -36,8 +33,6 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/free}
-    volumes:
-      - codex_home:/data/codex
     depends_on:
       db:
         condition: service_healthy
@@ -50,4 +45,3 @@ services:
       start_period: 20s
 volumes:
   dnd_data:
-  codex_home:
